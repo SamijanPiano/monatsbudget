@@ -1,0 +1,142 @@
+import { useRef, useState } from 'react'
+import { useBudgetStore } from '../../store/budgetStore'
+import { useActiveMonth } from '../../hooks/useActiveMonth'
+import { Card, SectionTitle } from '../ui/Card'
+import { Button } from '../ui/Button'
+import { NumberInput } from '../ui/NumberInput'
+import { IconDownload, IconUpload } from '../ui/icons'
+import { serializeBackup, parseBackup } from '../../lib/backup'
+import { formatMonthId } from '../../lib/format'
+
+export function SettingsView() {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
+
+  const settings = useBudgetStore((s) => s.settings)
+  const updateSettings = useBudgetStore((s) => s.updateSettings)
+  const resetMonth = useBudgetStore((s) => s.resetMonth)
+  const deleteMonth = useBudgetStore((s) => s.deleteMonth)
+  const replaceState = useBudgetStore((s) => s.replaceState)
+  const { activeMonthId } = useActiveMonth()
+
+  const handleExport = () => {
+    const { months, activeMonthId, settings } = useBudgetStore.getState()
+    const json = serializeBackup({ months, activeMonthId, settings })
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const date = new Date().toISOString().slice(0, 10)
+    a.href = url
+    a.download = `monatsbudget-backup-${date}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    setMessage({ text: 'Backup wurde heruntergeladen.', ok: true })
+  }
+
+  const handleImportClick = () => fileRef.current?.click()
+
+  const handleFile = async (file: File) => {
+    try {
+      const text = await file.text()
+      const next = parseBackup(text)
+      replaceState(next)
+      setMessage({ text: 'Backup erfolgreich importiert.', ok: true })
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Import fehlgeschlagen.'
+      setMessage({ text: msg, ok: false })
+    }
+  }
+
+  return (
+    <div className="view-stack">
+      <Card>
+        <SectionTitle title="Sparziel" hint="Optionales langfristiges Ziel (0 = aus)" />
+        <div className="savings-field savings-field--wide">
+          <label htmlFor="savings-goal" className="savings-field__label">
+            Gesamt-Sparziel
+          </label>
+          <NumberInput
+            id="savings-goal"
+            value={settings.savingsGoal}
+            onChange={(v) => updateSettings({ savingsGoal: v })}
+          />
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle title="Backup" hint="Daten sichern oder auf ein neues Gerät übertragen" />
+        <p className="settings-text">
+          Deine Daten liegen nur auf diesem Gerät. Exportiere regelmäßig ein Backup
+          (z. B. in iCloud) und importiere es bei Bedarf wieder.
+        </p>
+        <div className="settings-actions">
+          <Button variant="primary" onClick={handleExport}>
+            <IconDownload /> Backup exportieren
+          </Button>
+          <Button variant="outline" onClick={handleImportClick}>
+            <IconUpload /> Backup importieren
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            aria-label="JSON-Backup-Datei auswählen"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) handleFile(file)
+              e.target.value = ''
+            }}
+          />
+        </div>
+        {message && (
+          <p className={`settings-msg ${message.ok ? 'is-ok' : 'is-bad'}`} role="status">
+            {message.text}
+          </p>
+        )}
+      </Card>
+
+      <Card>
+        <SectionTitle
+          title="Aktiver Monat"
+          hint={`Aktionen für ${formatMonthId(activeMonthId)}`}
+        />
+        <div className="settings-actions">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (confirm(`${formatMonthId(activeMonthId)} auf Null zurücksetzen?`)) {
+                resetMonth(activeMonthId)
+                setMessage({ text: 'Monat zurückgesetzt.', ok: true })
+              }
+            }}
+          >
+            Monat zurücksetzen
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              if (confirm(`${formatMonthId(activeMonthId)} wirklich löschen?`)) {
+                deleteMonth(activeMonthId)
+                setMessage({ text: 'Monat gelöscht.', ok: true })
+              }
+            }}
+          >
+            Monat löschen
+          </Button>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle title="Als App installieren" />
+        <p className="settings-text">
+          In Safari auf <strong>Teilen</strong> → <strong>Zum Home-Bildschirm</strong> tippen.
+          Danach startet Monatsbudget wie eine echte App — auch offline.
+        </p>
+        <p className="settings-text settings-text--faint">Monatsbudget · v1.0</p>
+      </Card>
+    </div>
+  )
+}

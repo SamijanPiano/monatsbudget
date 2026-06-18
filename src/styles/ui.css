@@ -1,0 +1,353 @@
+/* Wiederverwendbare UI-Bausteine */
+
+.card {
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-card);
+}
+
+/* Abschnitts-Überschrift */
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.section-title__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.section-title__icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  color: var(--gold);
+  background: var(--gold-dim);
+  flex-shrink: 0;
+}
+.section-title h2 {
+  font-size: var(--text-lg);
+}
+.section-title__hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-full);
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn--md {
+  padding: 0.6rem 1.1rem;
+  font-size: var(--text-sm);
+}
+.btn--sm {
+  padding: 0.4rem 0.8rem;
+  font-size: var(--text-xs);
+}
+.btn--primary {
+  color: #1a1408;
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  box-shadow: var(--glow-gold);
+}
+.btn--primary:hover {
+  filter: brightness(1.06);
+}
+.btn--outline {
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+}
+.btn--outline:hover {
+  background: var(--surface-hover);
+  border-color: var(--gold);
+}
+.btn--ghost {
+  color: var(--text-muted);
+  background: transparent;
+}
+.btn--ghost:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.btn--danger {
+  color: var(--negative);
+  border: 1px solid var(--negative-dim);
+  background: var(--negative-dim);
+}
+.btn--danger:hover {
+  background: rgba(255, 133, 133, 0.22);
+}
+
+/* Geld-Eingabefeld */
+.num-input {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.num-input input {
+  width: 100%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.5rem 1.5rem 0.5rem 0.7rem;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+.num-input--sm input {
+  padding: 0.45rem 1.4rem 0.45rem 0.6rem;
+  font-size: var(--text-sm);
+}
+.num-input input::placeholder {
+  color: var(--text-faint);
+}
+.num-input input:hover {
+  border-color: var(--border-strong);
+}
+.num-input input:focus {
+  outline: none;
+  background: var(--surface-2);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-dim);
+}
+.num-input--konto input:focus {
+  border-color: var(--konto);
+  box-shadow: 0 0 0 3px var(--konto-dim);
+}
+.num-input--bar input:focus {
+  border-color: var(--bar);
+  box-shadow: 0 0 0 3px var(--bar-dim);
+}
+.num-input__suffix {
+  position: absolute;
+  right: 0.6rem;
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+  pointer-events: none;
+}
+
+/* Editierbare Zeile (Posten) — mobil zweizeilig, ab 560px einzeilig */
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'label remove'
+    'amounts amounts';
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.row:last-child {
+  border-bottom: none;
+}
+.row__label {
+  grid-area: label;
+  min-width: 0;
+}
+.row__label-input {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  font-weight: 500;
+  transition: background var(--dur-fast) var(--ease);
+}
+.row__label-input:hover {
+  background: var(--surface-2);
+}
+.row__label-input:focus-visible {
+  background: var(--surface-2);
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+.row__note {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  padding: 0 0.5rem;
+  margin-top: 1px;
+}
+.row__amounts {
+  grid-area: amounts;
+  display: flex;
+  gap: var(--space-3);
+}
+.amount-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.amount-field .num-input {
+  width: 100%;
+}
+.amount-field__tag {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.row[data-cols='one'] {
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas: 'label amounts remove';
+}
+.row[data-cols='one'] .amount-field {
+  flex: none;
+  width: 140px;
+}
+.row[data-cols='one'] .amount-field__tag {
+  display: none;
+}
+.row__remove {
+  grid-area: remove;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  color: var(--text-faint);
+  transition:
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+.row__remove:hover {
+  color: var(--negative);
+  background: var(--negative-dim);
+}
+
+@media (min-width: 560px) {
+  .row {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas: 'label amounts remove';
+  }
+  .amount-field {
+    flex: none;
+    width: 116px;
+  }
+  .amount-field__tag {
+    display: none;
+  }
+}
+
+/* Spaltenköpfe für Konto/Bar — nur ab 560px (mobil zeigen die Felder eigene Tags) */
+.amount-heads {
+  display: none;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.amount-heads__group {
+  display: flex;
+  gap: var(--space-3);
+}
+.amount-heads__cell {
+  width: 116px;
+  text-align: right;
+}
+.amount-heads__spacer {
+  width: 36px;
+}
+@media (min-width: 560px) {
+  .amount-heads {
+    display: grid;
+  }
+}
+
+/* Kanal-Legende / Chips */
+.legend {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.legend__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.legend__dot--konto {
+  background: var(--konto);
+}
+.legend__dot--bar {
+  background: var(--bar);
+}
+
+/* Summenzeile */
+.subtotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-strong);
+  font-size: var(--text-sm);
+}
+.subtotal__label {
+  color: var(--text-muted);
+}
+.subtotal__values {
+  display: flex;
+  gap: var(--space-5);
+  font-weight: 600;
+}
+
+/* Add-Button für Posten */
+.add-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--gold);
+  padding: 0.45rem 0.7rem;
+  border-radius: var(--radius-full);
+  border: 1px dashed var(--border-strong);
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+.add-row:hover {
+  background: var(--gold-dim);
+  border-color: var(--gold);
+}

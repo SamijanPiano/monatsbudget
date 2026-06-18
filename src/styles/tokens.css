@@ -1,0 +1,87 @@
+/* Design-Tokens — Dark Luxury.
+   Tiefes warmes Anthrazit, Champagner-Gold-Akzent, Konto=Gold / Bar=Mint,
+   Grün=positiv / Rot=Defizit. */
+
+:root {
+  color-scheme: dark;
+
+  /* Flächen / Tiefe */
+  --bg: #0a0908;
+  --bg-grad-1: #14110d;
+  --bg-grad-2: #0a0908;
+  --surface: #16140f;
+  --surface-2: #1e1b15;
+  --surface-3: #262219;
+  --surface-hover: #2b271d;
+  --border: rgba(232, 211, 168, 0.08);
+  --border-strong: rgba(232, 211, 168, 0.16);
+
+  /* Text */
+  --text: #f6f1e7;
+  --text-muted: #b3aa97;
+  --text-faint: #968d7b;
+
+  /* Akzente */
+  --gold: #d8b878;
+  --gold-soft: #ecd9b0;
+  --gold-dim: rgba(216, 184, 120, 0.14);
+
+  /* Kanäle */
+  --konto: #d8b878;
+  --konto-dim: rgba(216, 184, 120, 0.16);
+  --bar: #7fd7c4;
+  --bar-dim: rgba(127, 215, 196, 0.16);
+
+  /* Semantik */
+  --positive: #74e2ad;
+  --positive-dim: rgba(116, 226, 173, 0.14);
+  --negative: #ff8585;
+  --negative-dim: rgba(255, 133, 133, 0.14);
+
+  /* Typografie */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI',
+    Roboto, Helvetica, Arial, sans-serif;
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.4rem;
+  --text-2xl: 1.85rem;
+  --text-3xl: clamp(2.1rem, 1.4rem + 3vw, 3rem);
+
+  /* Abstände */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* Radien */
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --radius-full: 999px;
+
+  /* Schatten & Glow */
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 18px 50px -24px rgba(0, 0, 0, 0.85);
+  --shadow-pop: 0 24px 70px -20px rgba(0, 0, 0, 0.9);
+  --glow-gold: 0 0 0 1px rgba(216, 184, 120, 0.3),
+    0 10px 40px -10px rgba(216, 184, 120, 0.22);
+  --glow-positive: 0 0 0 1px rgba(116, 226, 173, 0.3),
+    0 14px 44px -14px rgba(116, 226, 173, 0.25);
+  --glow-negative: 0 0 0 1px rgba(255, 133, 133, 0.3),
+    0 14px 44px -14px rgba(255, 133, 133, 0.25);
+
+  /* Motion */
+  --dur-fast: 140ms;
+  --dur: 280ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Layout */
+  --maxw: 1120px;
+  --nav-h: 72px;
+}
