@@ -5,6 +5,7 @@ import './styles/global.css'
 import './styles/ui.css'
 import './styles/layout.css'
 import './styles/views.css'
+import './styles/saldo.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(

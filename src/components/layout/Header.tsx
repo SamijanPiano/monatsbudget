@@ -1,6 +1,6 @@
 import { MonthSwitcher } from './MonthSwitcher'
 
-export function Header() {
+export function Header({ showMonth = true }: { showMonth?: boolean }) {
   return (
     <header className="app-header">
       <div className="app-header__inner">
@@ -12,7 +12,7 @@ export function Header() {
             Monats<span className="wordmark__accent">budget</span>
           </span>
         </div>
-        <MonthSwitcher />
+        {showMonth && <MonthSwitcher />}
       </div>
     </header>
   )

@@ -5,8 +5,9 @@ import { Card, SectionTitle } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { NumberInput } from '../ui/NumberInput'
 import { IconDownload, IconUpload } from '../ui/icons'
-import { serializeBackup, parseBackup } from '../../lib/backup'
+import { serializeBackup, parseUnifiedBackup } from '../../lib/backup'
 import { formatMonthId } from '../../lib/format'
+import { useSaldoStore, saldoSnapshot } from '../../store/saldoStore'
 
 export function SettingsView() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -17,11 +18,12 @@ export function SettingsView() {
   const resetMonth = useBudgetStore((s) => s.resetMonth)
   const deleteMonth = useBudgetStore((s) => s.deleteMonth)
   const replaceState = useBudgetStore((s) => s.replaceState)
+  const replaceSaldo = useSaldoStore((s) => s.replaceSaldo)
   const { activeMonthId } = useActiveMonth()
 
   const handleExport = () => {
     const { months, activeMonthId, settings } = useBudgetStore.getState()
-    const json = serializeBackup({ months, activeMonthId, settings })
+    const json = serializeBackup({ months, activeMonthId, settings }, saldoSnapshot())
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -32,7 +34,7 @@ export function SettingsView() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    setMessage({ text: 'Backup wurde heruntergeladen.', ok: true })
+    setMessage({ text: 'Backup wurde heruntergeladen (Budget + Schulden).', ok: true })
   }
 
   const handleImportClick = () => fileRef.current?.click()
@@ -40,9 +42,12 @@ export function SettingsView() {
   const handleFile = async (file: File) => {
     try {
       const text = await file.text()
-      const next = parseBackup(text)
-      replaceState(next)
-      setMessage({ text: 'Backup erfolgreich importiert.', ok: true })
+      const { budget, saldo } = parseUnifiedBackup(text)
+      if (budget) replaceState(budget)
+      if (saldo) replaceSaldo(saldo)
+      const what =
+        budget && saldo ? 'Budget + Schulden' : budget ? 'Budget' : 'Schulden'
+      setMessage({ text: `${what} erfolgreich importiert.`, ok: true })
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Import fehlgeschlagen.'
       setMessage({ text: msg, ok: false })

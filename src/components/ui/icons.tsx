@@ -119,3 +119,84 @@ export function IconClose({ size = 20, className }: IconProps) {
     </svg>
   )
 }
+
+export function IconArrowLeft({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M19 12H5M11 18l-6-6 6-6" />
+    </svg>
+  )
+}
+
+export function IconUser({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+    </svg>
+  )
+}
+
+export function IconUsers({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <circle cx="9" cy="8" r="3.4" />
+      <path d="M3 19c0-3 2.7-5 6-5s6 2 6 5" />
+      <path d="M16 5.2a3.4 3.4 0 0 1 0 6.4M21 19c0-2.4-1.6-4.2-4-4.8" />
+    </svg>
+  )
+}
+
+export function IconList({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M8 6h13M8 12h13M8 18h13" />
+      <circle cx="3.5" cy="6" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="3.5" cy="12" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="3.5" cy="18" r="1.3" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+export function IconCalendar({ size = 18, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
+      <path d="M3 9h18M8 2.5v4M16 2.5v4" />
+    </svg>
+  )
+}
+
+export function IconReceipt({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M5 3.5v17l2-1.2 2 1.2 2-1.2 2 1.2 2-1.2 2 1.2v-17l-2 1.2-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2z" />
+      <path d="M9 9h6M9 13h6" />
+    </svg>
+  )
+}
+
+export function IconMinus({ size = 18, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M5 12h14" />
+    </svg>
+  )
+}
+
+export function IconRefresh({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M3.5 12a8.5 8.5 0 0 1 14.5-6l2 2M20.5 12a8.5 8.5 0 0 1-14.5 6l-2-2" />
+      <path d="M20 4v4h-4M4 20v-4h4" />
+    </svg>
+  )
+}
+
+export function IconCheckMark({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M5 12.5l4.5 4.5L19 6.5" />
+    </svg>
+  )
+}
