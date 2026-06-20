@@ -26,8 +26,7 @@ export function createBlankMonth(id: string): Month {
   return {
     id,
     income: [
-      { id: createId(), label: 'Gehalt (Überweisung)', konto: 0, bar: 0 },
-      { id: createId(), label: 'Gehalt (Bar)', konto: 0, bar: 0 },
+      { id: createId(), label: 'Einkommen', konto: 0, bar: 0 },
     ],
     fixed: [
       { id: createId(), label: 'Handy', konto: 0, bar: 0 },
