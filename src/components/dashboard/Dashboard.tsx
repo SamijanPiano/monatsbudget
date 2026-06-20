@@ -1,15 +1,17 @@
 import { useActiveMonth } from '../../hooks/useActiveMonth'
-import { useCashEnabled } from '../../store/budgetStore'
+import { useBudgetStore, useCashEnabled } from '../../store/budgetStore'
 import { Card, SectionTitle } from '../ui/Card'
 import { Money } from '../ui/Money'
 import { StatusBanner } from './StatusBanner'
 import { KpiCard } from './KpiCard'
 import { Donut, type DonutSegment } from '../charts/Donut'
+import { GoalCard } from '../goals/GoalCard'
 import { formatMoney } from '../../lib/format'
 
 export function Dashboard() {
   const { month, calc, situation } = useActiveMonth()
   const cashEnabled = useCashEnabled()
+  const goals = useBudgetStore((s) => s.profile.goals)
 
   const totalExpenses = calc.fixedTotal + calc.variableTotal
   const leftover = calc.incomeTotal - totalExpenses - calc.totalSavings
@@ -24,6 +26,15 @@ export function Dashboard() {
   return (
     <div className="view-stack">
       <StatusBanner situation={situation} currentKonto={month.currentKonto} />
+
+      {goals.length > 0 && (
+        <Card>
+          <SectionTitle title="Deine Ziele" />
+          <div className="goals-list">
+            {goals.map((g) => <GoalCard key={g.id} goal={g} />)}
+          </div>
+        </Card>
+      )}
 
       <div className="kpi-grid">
         <KpiCard

@@ -5,6 +5,7 @@ import { Card, SectionTitle } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { NumberInput } from '../ui/NumberInput'
 import { IconDownload, IconUpload } from '../ui/icons'
+import { GoalCard } from '../goals/GoalCard'
 import { serializeBackup, parseUnifiedBackup } from '../../lib/backup'
 import { formatMonthId } from '../../lib/format'
 import { useSaldoStore, saldoSnapshot } from '../../store/saldoStore'
@@ -20,6 +21,7 @@ export function SettingsView() {
   const replaceState = useBudgetStore((s) => s.replaceState)
   const setCashEnabled = useBudgetStore((s) => s.setCashEnabled)
   const restartOnboarding = useBudgetStore((s) => s.restartOnboarding)
+  const goals = useBudgetStore((s) => s.profile.goals)
   const replaceSaldo = useSaldoStore((s) => s.replaceSaldo)
   const { activeMonthId } = useActiveMonth()
   const cashEnabled = useCashEnabled()
@@ -136,6 +138,18 @@ export function SettingsView() {
           </Button>
         </div>
       </Card>
+
+      {goals.length > 0 && (
+        <Card>
+          <SectionTitle title="Meine Ziele" hint="Ziele verwalten" />
+          <div className="goals-list">
+            {goals.map((g) => <GoalCard key={g.id} goal={g} />)}
+          </div>
+          <p className="settings-text" style={{ marginTop: 'var(--space-3)', marginBottom: 0 }}>
+            Neue Ziele kannst du über den Einrichtungsassistenten hinzufügen.
+          </p>
+        </Card>
+      )}
 
       <Card>
         <SectionTitle title="Bargeld-Modus" hint="Bar-Kanal ein- oder ausblenden" />

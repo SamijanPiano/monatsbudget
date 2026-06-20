@@ -408,6 +408,129 @@
   background: #0a0908;
 }
 
+/* ---------- GoalCard ---------- */
+
+.goals-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.goal-card-item {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.goal-card-item__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.goal-card-item__icon {
+  color: var(--gold);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.goal-card-item__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.goal-card-item__label {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.goal-card-item__type {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.goal-card-item__remove {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px;
+  transition: color var(--dur-fast);
+  flex-shrink: 0;
+}
+
+.goal-card-item__remove:hover {
+  color: var(--negative);
+}
+
+.goal-card-item__amounts {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.goal-card-item__current {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+
+.goal-card-item__of {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.goal-card-item__target {
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.goal-card-item__bar {
+  height: 6px;
+  background: var(--surface-3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.goal-card-item__fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 999px;
+  transition: width var(--dur) var(--ease);
+}
+
+.goal-card-item__meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.goal-card-item__rate {
+  font-size: var(--text-xs);
+  color: var(--gold-soft);
+  background: var(--gold-dim);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  align-self: flex-start;
+}
+
+.goal-card-item__overview-hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
 /* ---------- Breakpoints ---------- */
 @media (min-width: 720px) {
   .kpi-grid {
