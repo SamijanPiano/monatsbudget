@@ -200,3 +200,60 @@ export function IconCheckMark({ size = 16, className }: IconProps) {
     </svg>
   )
 }
+
+export function IconTarget({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+export function IconTrendingDown({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M22 17l-8-7-4 4L2 7" />
+      <path d="M16 17h6v-6" />
+    </svg>
+  )
+}
+
+export function IconShield({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M12 3l8 3v5c0 4.5-3.2 8.7-8 10-4.8-1.3-8-5.5-8-10V6l8-3z" />
+    </svg>
+  )
+}
+
+export function IconEye({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+export function IconWallet({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <rect x="2" y="6" width="20" height="14" rx="2.5" />
+      <path d="M2 10h20" />
+      <path d="M16 6V4.5a1.5 1.5 0 0 0-1.5-1.5h-5A1.5 1.5 0 0 0 8 4.5V6" />
+      <circle cx="17" cy="15" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+export function IconSparkles({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M12 2l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" />
+      <path d="M19 12l1 2.5 2.5 1-2.5 1L19 19l-1-2.5L15.5 15.5l2.5-1z" />
+      <path d="M5 14l.8 2 2 .8-2 .8L5 20l-.8-2L2.2 17.2l2-.8z" />
+    </svg>
+  )
+}
