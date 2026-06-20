@@ -1,0 +1,331 @@
+/* ─── Onboarding Wizard ─── */
+
+.wizard {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wizard__progress {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  padding: 20px 24px 0;
+  flex-shrink: 0;
+}
+
+.wizard__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition: background var(--dur) var(--ease);
+}
+
+.wizard__dot--active {
+  background: var(--gold);
+}
+
+.wizard__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 24px 48px;
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ─── Step base ─── */
+
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+.wizard-step--center {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 24px;
+}
+
+.wizard-step__hero {
+  color: var(--gold);
+}
+
+.wizard-step__done-emoji {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.wizard-step__title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--text);
+  margin: 0;
+}
+
+.wizard-step__sub {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 36ch;
+}
+
+/* ─── Nav buttons ─── */
+
+.wizard-nav {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 32px;
+}
+
+.wizard-btn {
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--dur-fast), transform var(--dur-fast);
+  padding: 14px 24px;
+  font-family: var(--font-sans);
+}
+
+.wizard-btn:active {
+  transform: scale(0.97);
+}
+
+.wizard-btn--primary {
+  background: var(--gold);
+  color: #0a0908;
+  flex: 1;
+}
+
+.wizard-btn--primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.wizard-btn--ghost {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.wizard-btn--sm {
+  padding: 8px 14px;
+  font-size: 0.875rem;
+}
+
+/* ─── Goal cards (multi-select) ─── */
+
+.goal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.goal-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  background: var(--surface-2);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--dur-fast), background var(--dur-fast), transform var(--dur-fast);
+  font-family: var(--font-sans);
+}
+
+.goal-card:active {
+  transform: scale(0.97);
+}
+
+.goal-card--active {
+  border-color: var(--gold);
+  background: var(--gold-dim);
+}
+
+.goal-card__icon {
+  color: var(--gold);
+}
+
+.goal-card__label {
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.goal-card__sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+/* ─── Cash options ─── */
+
+.cash-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.cash-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 12px;
+  background: var(--surface-2);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--dur-fast), background var(--dur-fast), transform var(--dur-fast);
+  font-family: var(--font-sans);
+}
+
+.cash-option:active {
+  transform: scale(0.97);
+}
+
+.cash-option--active {
+  border-color: var(--gold);
+  background: var(--gold-dim);
+}
+
+.cash-option__icon {
+  font-size: 28px;
+  color: var(--gold);
+}
+
+.cash-option__label {
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cash-option__sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* ─── Quickstart form ─── */
+
+.quickstart-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quickstart-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.quickstart-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  color: var(--text);
+  box-sizing: border-box;
+  transition: border-color var(--dur-fast);
+  font-family: var(--font-sans);
+}
+
+.quickstart-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.quickstart-input[type="month"] {
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: dark;
+}
+
+.quickstart-expenses-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.quickstart-expense-row {
+  display: grid;
+  grid-template-columns: 1fr 140px auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.quickstart-remove {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+  transition: color var(--dur-fast);
+}
+
+.quickstart-remove:hover {
+  color: var(--negative);
+}
+
+/* ─── Goal drafts ─── */
+
+.goal-drafts {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.goal-draft {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.goal-draft__header {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.goal-draft__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.goal-draft__amounts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
