@@ -3,6 +3,32 @@
 
 export type Channel = 'konto' | 'bar'
 
+export type GoalType = 'save' | 'debt' | 'buffer' | 'overview'
+
+export interface Goal {
+  id: string
+  type: GoalType
+  /** Anzeigename, z. B. „Urlaub Japan" */
+  label: string
+  /** Zielbetrag (€). save/buffer: Sparziel · debt: ursprüngliche Schuld · overview: 0 */
+  targetAmount: number
+  /** Optionale Frist YYYY-MM (treibt die empfohlene Monatsrate). */
+  deadline?: string
+  /** Aktueller Stand: Erspartes (save/buffer) bzw. Restschuld (debt). */
+  currentAmount: number
+  /** ISO-Zeitstempel der Erstellung. */
+  createdAt: string
+}
+
+export interface UserProfile {
+  /** Onboarding abgeschlossen? Steuert den Wizard. */
+  onboarded: boolean
+  /** Bar-Kanal aktiv? false = Einfach-Modus (Bar überall ausgeblendet). */
+  cashEnabled: boolean
+  /** Vom Nutzer gewählte Ziele (Mehrfachauswahl). */
+  goals: Goal[]
+}
+
 export interface LineItem {
   id: string
   label: string
@@ -41,6 +67,7 @@ export interface BudgetState {
   months: Record<string, Month>
   activeMonthId: string
   settings: Settings
+  profile: UserProfile
 }
 
 /** Abgeleitete Werte eines Monats (entspricht den Excel-Formeln). */
