@@ -3,9 +3,11 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { BudgetState, LineItem, Month, Settings } from '../types/budget'
+import type { BudgetState, Goal, LineItem, Month, Settings } from '../types/budget'
 import { createId } from '../lib/id'
 import { DEFAULT_SETTINGS, copyMonth, createBlankMonth, currentMonthId } from '../lib/seed'
+import { migrateBudgetState } from './migrate'
+import type { OnboardingResult } from '../lib/onboarding'
 
 export type Section = 'income' | 'fixed' | 'variable'
 
@@ -28,6 +30,12 @@ interface BudgetActions {
   setSavings: (channel: 'konto' | 'bar', value: number) => void
   setCurrent: (channel: 'konto' | 'bar', value: number) => void
   updateSettings: (patch: Partial<Settings>) => void
+  setCashEnabled: (value: boolean) => void
+  completeOnboarding: (result: OnboardingResult) => void
+  restartOnboarding: () => void
+  addGoal: (goal: Goal) => void
+  updateGoal: (id: string, patch: Partial<Goal>) => void
+  removeGoal: (id: string) => void
   replaceState: (next: Pick<BudgetState, 'months' | 'activeMonthId' | 'settings'>) => void
 }
 
@@ -39,6 +47,7 @@ function initialState(): BudgetState {
     months: { [id]: createBlankMonth(id) },
     activeMonthId: id,
     settings: { ...DEFAULT_SETTINGS },
+    profile: { onboarded: false, cashEnabled: false, goals: [] },
   }
 }
 
@@ -52,6 +61,20 @@ function patchActiveMonth(
   return {
     months: { ...state.months, [state.activeMonthId]: update(current) },
   }
+}
+
+/** Schreibt die Onboarding-Schnellstart-Werte in den aktiven Monat (immutable). */
+function applyQuickStart(month: Month, result: OnboardingResult): Month {
+  if (result.income <= 0 && result.expenses.length === 0) return month
+  const income: LineItem[] =
+    result.income > 0
+      ? [{ id: createId(), label: 'Einkommen', konto: result.income, bar: 0 }]
+      : month.income
+  const variable: LineItem[] =
+    result.expenses.length > 0
+      ? result.expenses.map((e) => ({ id: createId(), label: e.label, konto: e.amount, bar: 0 }))
+      : month.variable
+  return { ...month, income, variable }
 }
 
 export const useBudgetStore = create<BudgetStore>()(
@@ -152,18 +175,56 @@ export const useBudgetStore = create<BudgetStore>()(
       updateSettings: (patch) =>
         set((state) => ({ settings: { ...state.settings, ...patch } })),
 
+      setCashEnabled: (value) =>
+        set((state) => ({ profile: { ...state.profile, cashEnabled: value } })),
+
+      completeOnboarding: (result) =>
+        set((state) => {
+          const id = state.activeMonthId
+          const current = state.months[id]
+          const month = current ? applyQuickStart(current, result) : current
+          return {
+            profile: {
+              ...state.profile,
+              onboarded: true,
+              cashEnabled: result.cashEnabled,
+              goals: result.goals,
+            },
+            months: month ? { ...state.months, [id]: month } : state.months,
+          }
+        }),
+
+      restartOnboarding: () =>
+        set((state) => ({ profile: { ...state.profile, onboarded: false } })),
+
+      addGoal: (goal) =>
+        set((state) => ({ profile: { ...state.profile, goals: [...state.profile.goals, goal] } })),
+
+      updateGoal: (id, patch) =>
+        set((state) => ({
+          profile: {
+            ...state.profile,
+            goals: state.profile.goals.map((g) => (g.id === id ? { ...g, ...patch } : g)),
+          },
+        })),
+
+      removeGoal: (id) =>
+        set((state) => ({
+          profile: { ...state.profile, goals: state.profile.goals.filter((g) => g.id !== id) },
+        })),
+
       replaceState: (next) =>
-        set(() => ({
+        set((state) => ({
           months: next.months,
           activeMonthId: next.activeMonthId,
           settings: { ...DEFAULT_SETTINGS, ...next.settings },
+          profile: state.profile,
         })),
     }),
     {
       name: STORAGE_KEY,
-      version: 1,
-      // Migrationspfad für künftige Schemaänderungen (aktuell unverändert).
-      migrate: (persisted) => persisted as BudgetState,
+      version: 2,
+      migrate: (persisted, version) => migrateBudgetState(persisted, version),
     },
   ),
 )
@@ -171,4 +232,8 @@ export const useBudgetStore = create<BudgetStore>()(
 /** Sortierte Monats-IDs (neueste zuletzt). */
 export function sortedMonthIds(months: Record<string, Month>): string[] {
   return Object.keys(months).sort()
+}
+
+export function useCashEnabled(): boolean {
+  return useBudgetStore((s) => s.profile.cashEnabled)
 }
