@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useBudgetStore } from '../../store/budgetStore'
+import { useBudgetStore, useCashEnabled } from '../../store/budgetStore'
 import { useActiveMonth } from '../../hooks/useActiveMonth'
 import { Card, SectionTitle } from '../ui/Card'
 import { Button } from '../ui/Button'
@@ -18,8 +18,11 @@ export function SettingsView() {
   const resetMonth = useBudgetStore((s) => s.resetMonth)
   const deleteMonth = useBudgetStore((s) => s.deleteMonth)
   const replaceState = useBudgetStore((s) => s.replaceState)
+  const setCashEnabled = useBudgetStore((s) => s.setCashEnabled)
+  const restartOnboarding = useBudgetStore((s) => s.restartOnboarding)
   const replaceSaldo = useSaldoStore((s) => s.replaceSaldo)
   const { activeMonthId } = useActiveMonth()
+  const cashEnabled = useCashEnabled()
 
   const handleExport = () => {
     const { months, activeMonthId, settings } = useBudgetStore.getState()
@@ -135,12 +138,52 @@ export function SettingsView() {
       </Card>
 
       <Card>
+        <SectionTitle title="Bargeld-Modus" hint="Bar-Kanal ein- oder ausblenden" />
+        <p className="settings-text">
+          Im Einfach-Modus siehst du nur den Konto-Kanal. Aktiviere Bar-Tracking, wenn du
+          regelmäßig mit Scheinen oder Münzen zahlst.
+        </p>
+        <div className="settings-toggle-row">
+          <span className="settings-toggle-label">Bar-Tracking aktiv</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={cashEnabled}
+            className={`settings-toggle ${cashEnabled ? 'settings-toggle--on' : ''}`}
+            onClick={() => setCashEnabled(!cashEnabled)}
+          >
+            <span className="settings-toggle__knob" />
+          </button>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle title="Einrichtung" hint="Wizard erneut starten" />
+        <p className="settings-text">
+          Starte den Einrichtungsassistenten neu, um deine Ziele oder Präferenzen zu ändern.
+          Deine Monatsdaten bleiben erhalten.
+        </p>
+        <div className="settings-actions">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (confirm('Einrichtungsassistenten neu starten? Monatsdaten bleiben erhalten.')) {
+                restartOnboarding()
+              }
+            }}
+          >
+            Einrichtung neu starten
+          </Button>
+        </div>
+      </Card>
+
+      <Card>
         <SectionTitle title="Als App installieren" />
         <p className="settings-text">
           In Safari auf <strong>Teilen</strong> → <strong>Zum Home-Bildschirm</strong> tippen.
           Danach startet Monatsbudget wie eine echte App — auch offline.
         </p>
-        <p className="settings-text settings-text--faint">Monatsbudget · v1.0</p>
+        <p className="settings-text settings-text--faint">Monatsbudget · v2.0</p>
       </Card>
     </div>
   )

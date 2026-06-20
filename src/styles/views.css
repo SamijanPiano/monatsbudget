@@ -369,6 +369,45 @@
   background: var(--negative-dim);
 }
 
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+}
+.settings-toggle-label {
+  font-size: var(--text-base);
+  color: var(--text);
+}
+.settings-toggle {
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background var(--dur-fast);
+  flex-shrink: 0;
+}
+.settings-toggle--on {
+  background: var(--gold);
+}
+.settings-toggle__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform var(--dur-fast) var(--ease);
+}
+.settings-toggle--on .settings-toggle__knob {
+  transform: translateX(20px);
+  background: #0a0908;
+}
+
 /* ---------- Breakpoints ---------- */
 @media (min-width: 720px) {
   .kpi-grid {
