@@ -1,9 +1,11 @@
 import { useActiveMonth } from '../../hooks/useActiveMonth'
+import { useCashEnabled } from '../../store/budgetStore'
 import { LineSection } from './LineSection'
 import { SavingsSection } from './SavingsSection'
 
 export function PlanView() {
   const { month, calc } = useActiveMonth()
+  const cashEnabled = useCashEnabled()
 
   return (
     <div className="view-stack">
@@ -11,9 +13,11 @@ export function PlanView() {
         <span className="legend__item">
           <span className="legend__dot legend__dot--konto" /> Konto (Überweisung)
         </span>
-        <span className="legend__item">
-          <span className="legend__dot legend__dot--bar" /> Bar
-        </span>
+        {cashEnabled && (
+          <span className="legend__item">
+            <span className="legend__dot legend__dot--bar" /> Bar
+          </span>
+        )}
       </div>
 
       <LineSection
@@ -21,6 +25,7 @@ export function PlanView() {
         title="Einnahmen"
         hint="Gehalt und sonstige Eingänge"
         items={month.income}
+        showBar={cashEnabled}
         subtotalKonto={calc.incomeKonto}
         subtotalBar={calc.incomeBar}
       />
@@ -40,6 +45,7 @@ export function PlanView() {
         title="Variable Ausgaben"
         hint="Was sich Monat für Monat ändert"
         items={month.variable}
+        showBar={cashEnabled}
         subtotalKonto={calc.variableKonto}
         subtotalBar={calc.variableBar}
       />

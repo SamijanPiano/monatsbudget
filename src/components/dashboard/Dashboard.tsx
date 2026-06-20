@@ -1,4 +1,5 @@
 import { useActiveMonth } from '../../hooks/useActiveMonth'
+import { useCashEnabled } from '../../store/budgetStore'
 import { Card, SectionTitle } from '../ui/Card'
 import { Money } from '../ui/Money'
 import { StatusBanner } from './StatusBanner'
@@ -8,6 +9,7 @@ import { formatMoney } from '../../lib/format'
 
 export function Dashboard() {
   const { month, calc, situation } = useActiveMonth()
+  const cashEnabled = useCashEnabled()
 
   const totalExpenses = calc.fixedTotal + calc.variableTotal
   const leftover = calc.incomeTotal - totalExpenses - calc.totalSavings
@@ -28,7 +30,7 @@ export function Dashboard() {
           label="Einnahmen"
           value={calc.incomeTotal}
           accent="gold"
-          sub={`Konto ${formatMoney(calc.incomeKonto)} · Bar ${formatMoney(calc.incomeBar)}`}
+          sub={cashEnabled ? `Konto ${formatMoney(calc.incomeKonto)} · Bar ${formatMoney(calc.incomeBar)}` : undefined}
         />
         <KpiCard
           label="Ausgaben"
@@ -82,7 +84,7 @@ export function Dashboard() {
           <div className="result-list">
             <div className="result-row">
               <span>Einnahmen</span>
-              <Money value={calc.incomeKonto} tone="konto" />
+              <Money value={cashEnabled ? calc.incomeKonto : calc.incomeTotal} tone="konto" />
             </div>
             <div className="result-row">
               <span>− Feste Abzüge</span>
@@ -90,7 +92,7 @@ export function Dashboard() {
             </div>
             <div className="result-row">
               <span>− Variable Ausgaben</span>
-              <Money value={calc.variableKonto} />
+              <Money value={cashEnabled ? calc.variableKonto : calc.variableTotal} />
             </div>
             <div className="result-row result-row--total">
               <span>Nach Abzügen</span>
@@ -99,23 +101,25 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card>
-          <SectionTitle title="Bar" />
-          <div className="result-list">
-            <div className="result-row">
-              <span>Einnahmen</span>
-              <Money value={calc.incomeBar} tone="bar" />
+        {cashEnabled && (
+          <Card>
+            <SectionTitle title="Bar" />
+            <div className="result-list">
+              <div className="result-row">
+                <span>Einnahmen</span>
+                <Money value={calc.incomeBar} tone="bar" />
+              </div>
+              <div className="result-row">
+                <span>− Variable Ausgaben</span>
+                <Money value={calc.variableBar} />
+              </div>
+              <div className="result-row result-row--total">
+                <span>Nach Ausgaben</span>
+                <Money value={calc.barAfterExpenses} signed />
+              </div>
             </div>
-            <div className="result-row">
-              <span>− Variable Ausgaben</span>
-              <Money value={calc.variableBar} />
-            </div>
-            <div className="result-row result-row--total">
-              <span>Nach Ausgaben</span>
-              <Money value={calc.barAfterExpenses} signed />
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
     </div>
   )
