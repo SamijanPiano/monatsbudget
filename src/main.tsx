@@ -7,6 +7,7 @@ import './styles/layout.css'
 import './styles/views.css'
 import './styles/saldo.css'
 import './styles/onboarding.css'
+import './styles/transactions.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(

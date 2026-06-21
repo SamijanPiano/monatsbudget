@@ -1,0 +1,207 @@
+/* Transaktions-Ansicht (Buchungen) — passt zur Dark-Luxury-Sprache. */
+
+/* Hero „Verfügbar diesen Monat" */
+.hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-5);
+}
+.hero--ok {
+  box-shadow: var(--glow-positive), var(--shadow-card);
+}
+.hero--warn {
+  box-shadow: var(--glow-negative), var(--shadow-card);
+}
+.hero__label {
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.hero__value {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--text);
+}
+.hero--ok .hero__value {
+  color: var(--positive);
+}
+.hero--warn .hero__value {
+  color: var(--negative);
+}
+.hero__hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  max-width: 32ch;
+  margin: 0;
+}
+
+/* Import */
+.import {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+.import__input {
+  display: none;
+}
+.import__msg {
+  font-size: var(--text-sm);
+  margin: 0;
+}
+.import__msg--ok {
+  color: var(--positive);
+}
+.import__msg--info {
+  color: var(--text-muted);
+}
+.import__msg--error {
+  color: var(--negative);
+}
+
+/* Leerer Zustand */
+.empty {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-3);
+}
+.empty__title {
+  font-size: var(--text-xl);
+  margin: 0;
+}
+.empty__text {
+  color: var(--text-muted);
+  max-width: 42ch;
+  margin: 0 0 var(--space-2);
+  line-height: 1.5;
+}
+
+/* Kontostand-Editor */
+.balance-editor {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  max-width: 16rem;
+}
+.balance-editor__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: var(--text-lg);
+  text-align: right;
+  min-width: 0;
+}
+.balance-editor__cur {
+  color: var(--text-muted);
+  font-size: var(--text-lg);
+}
+
+/* Buchungsliste */
+.tx-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+.tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.tx-group__head {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin: 0 0 var(--space-2);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border);
+}
+.tx-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.tx-row:last-child {
+  border-bottom: none;
+}
+.tx-row__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tx-row__party {
+  font-size: var(--text-base);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tx-row__meta {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tx-row__amount {
+  font-size: var(--text-base);
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Kategorie-Auswahl in der Zeile */
+.tx-cat {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  color: var(--text);
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
+  max-width: 9rem;
+}
+.tx-cat--empty {
+  color: var(--gold);
+  border-color: var(--border-strong);
+}
+
+@media (max-width: 480px) {
+  .tx-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'main amount'
+      'cat cat';
+    gap: var(--space-1) var(--space-3);
+  }
+  .tx-row__main {
+    grid-area: main;
+  }
+  .tx-row__amount {
+    grid-area: amount;
+  }
+  .tx-cat {
+    grid-area: cat;
+    max-width: 100%;
+    justify-self: start;
+  }
+}

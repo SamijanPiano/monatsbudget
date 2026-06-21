@@ -25,6 +25,11 @@ export function formatMoney(value: number, locale = 'de-DE'): string {
   }).format(safe)
 }
 
+/** Ganzzahliger Cent-Betrag (neues Transaktions-Modell) als Währung. */
+export function formatCents(cents: number, locale = 'de-DE'): string {
+  return formatMoney((Number.isFinite(cents) ? cents : 0) / 100, locale)
+}
+
 /** Kompakte Anzeige ohne Währungssymbol, z. B. für Achsenbeschriftungen. */
 export function formatNumber(value: number, locale = 'de-DE'): string {
   const safe = Number.isFinite(value) ? value : 0
