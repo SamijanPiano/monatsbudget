@@ -30,6 +30,8 @@ dist-ssr
 .hive-mind/
 memory/
 *.db
+graphify-out/
+docs/superpowers/
 
 # Lokale Startdaten mit echten Werten – niemals committen
 Monatsbudget-Startdaten.json
