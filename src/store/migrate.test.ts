@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest'
+import type { Month } from '../types/budget'
 import { migrateBudgetState } from './migrate'
 
-const emptyMonth = (id: string) => ({
+const emptyMonth = (id: string): Month => ({
   id, income: [], fixed: [], variable: [],
   savingsKonto: 0, savingsBar: 0, currentKonto: 0, currentBar: 0,
 })
@@ -36,8 +37,98 @@ describe('migrateBudgetState v1 -> v2', () => {
     expect(out.profile.goals[0].targetAmount).toBe(5000)
   })
 
-  test('bereits v2 (profile vorhanden) bleibt unverändert', () => {
+  test('v2 mit profile: profile bleibt erhalten (kein Überschreiben)', () => {
     const v2 = { months: {}, activeMonthId: '2026-06', settings: { currency: '€', locale: 'de-DE', savingsGoal: 0 }, profile: { onboarded: true, cashEnabled: true, goals: [] } }
-    expect(migrateBudgetState(v2, 2)).toBe(v2)
+    const out = migrateBudgetState(v2, 2)
+    expect(out.profile).toEqual({ onboarded: true, cashEnabled: true, goals: [] })
+  })
+})
+
+const v2Base = (
+  months: Record<string, Month>,
+  profilePatch: Record<string, unknown> = {},
+) => ({
+  months,
+  activeMonthId: Object.keys(months)[0] ?? '2026-06',
+  settings: { currency: '€', locale: 'de-DE', savingsGoal: 0 },
+  profile: { onboarded: true, cashEnabled: false, goals: [], ...profilePatch },
+})
+
+describe('migrateBudgetState v2 -> v3 (Transaktions-Schicht)', () => {
+  test('ergänzt leere Transaktions-Schicht', () => {
+    const out = migrateBudgetState(v2Base({ '2026-06': emptyMonth('2026-06') }), 2)
+    expect(out.transactions).toEqual([])
+    expect(out.recurringRules).toEqual([])
+    expect(Array.isArray(out.categories)).toBe(true)
+    expect(Array.isArray(out.accounts)).toBe(true)
+  })
+
+  test('legt mindestens ein Giro-Konto an', () => {
+    const out = migrateBudgetState(v2Base({ '2026-06': emptyMonth('2026-06') }), 2)
+    expect(out.accounts.some((a) => a.type === 'checking')).toBe(true)
+  })
+
+  test('cashEnabled -> Bar-Konto vorhanden', () => {
+    const out = migrateBudgetState(v2Base({ '2026-06': emptyMonth('2026-06') }, { cashEnabled: true }), 2)
+    expect(out.accounts.some((a) => a.type === 'cash')).toBe(true)
+  })
+
+  test('ohne Bargeld -> kein Bar-Konto', () => {
+    const out = migrateBudgetState(v2Base({ '2026-06': emptyMonth('2026-06') }), 2)
+    expect(out.accounts.some((a) => a.type === 'cash')).toBe(false)
+  })
+
+  test('Bestands-Posten werden zu Kategorien (richtige Art, Budget in Cent)', () => {
+    const m = {
+      ...emptyMonth('2026-06'),
+      income: [{ id: 'i', label: 'Gehalt', konto: 2000, bar: 0 }],
+      fixed: [{ id: 'f', label: 'Handy', konto: 30, bar: 0 }],
+      variable: [{ id: 'v', label: 'Lebensmittel', konto: 300, bar: 0 }],
+    }
+    const out = migrateBudgetState(v2Base({ '2026-06': m }), 2)
+    const gehalt = out.categories.find((c) => c.label === 'Gehalt')
+    const handy = out.categories.find((c) => c.label === 'Handy')
+    const lm = out.categories.find((c) => c.label === 'Lebensmittel')
+    expect(gehalt?.kind).toBe('income')
+    expect(handy?.kind).toBe('fixed')
+    expect(handy?.budget).toBe(3000) // 30 € -> 3000 Cent
+    expect(lm?.kind).toBe('variable')
+    expect(lm?.budget).toBe(30000)
+  })
+
+  test('gleicher Posten in mehreren Monaten: neuester Monat bestimmt das Budget', () => {
+    const older = { ...emptyMonth('2026-05'), fixed: [{ id: 'a', label: 'Handy', konto: 30, bar: 0 }] }
+    const newer = { ...emptyMonth('2026-06'), fixed: [{ id: 'b', label: 'Handy', konto: 40, bar: 0 }] }
+    const out = migrateBudgetState(v2Base({ '2026-05': older, '2026-06': newer }), 2)
+    const handy = out.categories.filter((c) => c.label === 'Handy')
+    expect(handy).toHaveLength(1)
+    expect(handy[0].budget).toBe(4000)
+  })
+
+  test('erhält Monate, Profil und Ziele', () => {
+    const months = { '2026-06': emptyMonth('2026-06') }
+    const goal = { id: 'g', type: 'save', label: 'X', targetAmount: 1000, currentAmount: 0, createdAt: 'now' }
+    const out = migrateBudgetState(v2Base(months, { goals: [goal] }), 2)
+    expect(out.months).toEqual(months)
+    expect(out.profile.goals).toHaveLength(1)
+  })
+
+  test('v1 -> v3 in einem Schritt', () => {
+    const v1 = { months: { '2026-06': emptyMonth('2026-06') }, activeMonthId: '2026-06', settings: { currency: '€', locale: 'de-DE', savingsGoal: 0 } }
+    const out = migrateBudgetState(v1, 1)
+    expect(out.profile).toBeDefined()
+    expect(out.categories).toBeDefined()
+    expect(out.transactions).toEqual([])
+  })
+
+  test('bereits v3 bleibt unverändert (idempotent)', () => {
+    const v3 = {
+      ...v2Base({}),
+      transactions: [],
+      categories: [],
+      accounts: [],
+      recurringRules: [],
+    }
+    expect(migrateBudgetState(v3, 3)).toBe(v3)
   })
 })

@@ -48,6 +48,10 @@ function initialState(): BudgetState {
     activeMonthId: id,
     settings: { ...DEFAULT_SETTINGS },
     profile: { onboarded: false, cashEnabled: false, goals: [] },
+    transactions: [],
+    categories: [],
+    accounts: [],
+    recurringRules: [],
   }
 }
 
@@ -219,11 +223,15 @@ export const useBudgetStore = create<BudgetStore>()(
           activeMonthId: next.activeMonthId,
           settings: { ...DEFAULT_SETTINGS, ...next.settings },
           profile: state.profile,
+          transactions: state.transactions,
+          categories: state.categories,
+          accounts: state.accounts,
+          recurringRules: state.recurringRules,
         })),
     }),
     {
       name: STORAGE_KEY,
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => migrateBudgetState(persisted, version),
     },
   ),

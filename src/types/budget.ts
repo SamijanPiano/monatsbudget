@@ -63,11 +63,85 @@ export interface Settings {
   savingsGoal: number
 }
 
+// ─── Transaktions-Schicht (v3) ──────────────────────────────────────────────
+// Quelle der Wahrheit für die neue, automatische Welt. Beträge in CENT (ganze
+// Zahlen, signed: negativ = Ausgabe, positiv = Einnahme), um Float-Drift zu
+// vermeiden. Datei-Import und späterer Live-Sync normalisieren auf dieselben
+// Strukturen.
+
+export type TransactionSource = 'import' | 'sync' | 'manual'
+
+export type CategoryKind = 'income' | 'fixed' | 'variable' | 'savings' | 'transfer' | 'ignore'
+
+export interface CategoryRule {
+  field: 'counterparty' | 'purpose'
+  match: 'contains' | 'equals' | 'regex'
+  value: string
+}
+
+export interface Category {
+  id: string
+  label: string
+  kind: CategoryKind
+  /** Monatliches Plan-Budget in Cent. null = kein Budget gesetzt. */
+  budget: number | null
+  /** Regeln für die automatische Zuordnung von Buchungen. */
+  rules: CategoryRule[]
+  icon?: string
+}
+
+export type AccountType = 'checking' | 'cash'
+
+export interface Account {
+  id: string
+  name: string
+  type: AccountType
+  /** Aktueller Saldo in Cent. null = unbekannt. */
+  balance: number | null
+  iban?: string
+}
+
+export interface Transaction {
+  id: string
+  /** Buchungsdatum im Format YYYY-MM-DD. */
+  date: string
+  /** Betrag in Cent, signed: negativ = Ausgabe, positiv = Einnahme. */
+  amount: number
+  /** Empfänger/Zahler. */
+  counterparty: string
+  /** Verwendungszweck. */
+  purpose: string
+  categoryId: string | null
+  accountId: string
+  source: TransactionSource
+  /** Dedup-Schlüssel für idempotenten (Re-)Import. */
+  hash: string
+}
+
+export interface RecurringRule {
+  id: string
+  counterparty: string
+  /** typischer Betrag in Cent (signed). */
+  amountApprox: number
+  cadence: 'monthly'
+  categoryId: string | null
+  /** nächstes erwartetes Datum im Format YYYY-MM-DD. */
+  nextExpected: string
+}
+
 export interface BudgetState {
   months: Record<string, Month>
   activeMonthId: string
   settings: Settings
   profile: UserProfile
+  /** v3: einzelne Buchungen (Import/Sync/manuell). */
+  transactions: Transaction[]
+  /** v3: Kategorien mit optionalem Plan-Budget + Auto-Regeln. */
+  categories: Category[]
+  /** v3: Konten (Giro + optional Bar). */
+  accounts: Account[]
+  /** v3: erkannte wiederkehrende Posten. */
+  recurringRules: RecurringRule[]
 }
 
 /** Abgeleitete Werte eines Monats (entspricht den Excel-Formeln). */
