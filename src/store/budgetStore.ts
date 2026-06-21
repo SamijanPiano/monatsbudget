@@ -3,11 +3,16 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { BudgetState, Goal, LineItem, Month, Settings } from '../types/budget'
+import type { BudgetState, Category, Goal, LineItem, Month, Settings } from '../types/budget'
 import { createId } from '../lib/id'
 import { DEFAULT_SETTINGS, copyMonth, createBlankMonth, currentMonthId } from '../lib/seed'
 import { migrateBudgetState } from './migrate'
 import type { OnboardingResult } from '../lib/onboarding'
+import type { ParsedTransaction } from '../lib/import/types'
+import { buildImportedTransactions } from '../lib/ingest'
+import { detectRecurring } from '../lib/recurring'
+import { learnRule } from '../lib/categorize'
+import { defaultCategories } from '../lib/categorizeSeed'
 
 export type Section = 'income' | 'fixed' | 'variable'
 
@@ -37,6 +42,13 @@ interface BudgetActions {
   updateGoal: (id: string, patch: Partial<Goal>) => void
   removeGoal: (id: string) => void
   replaceState: (next: Pick<BudgetState, 'months' | 'activeMonthId' | 'settings'>) => void
+  // Transaktions-Schicht (v3)
+  importParsed: (parsed: ParsedTransaction[], accountId?: string) => number
+  setTransactionCategory: (txId: string, categoryId: string | null) => void
+  addCategory: (category: Category) => void
+  updateCategory: (id: string, patch: Partial<Category>) => void
+  removeCategory: (id: string) => void
+  setAccountBalance: (accountId: string, balance: number | null) => void
 }
 
 export type BudgetStore = BudgetState & BudgetActions
@@ -49,8 +61,8 @@ function initialState(): BudgetState {
     settings: { ...DEFAULT_SETTINGS },
     profile: { onboarded: false, cashEnabled: false, goals: [] },
     transactions: [],
-    categories: [],
-    accounts: [],
+    categories: defaultCategories(),
+    accounts: [{ id: createId(), name: 'Konto', type: 'checking', balance: null }],
     recurringRules: [],
   }
 }
@@ -227,6 +239,63 @@ export const useBudgetStore = create<BudgetStore>()(
           categories: state.categories,
           accounts: state.accounts,
           recurringRules: state.recurringRules,
+        })),
+
+      importParsed: (parsed, accountId) => {
+        let count = 0
+        set((state) => {
+          const categories =
+            state.categories.length > 0 ? state.categories : defaultCategories()
+          const checking = state.accounts.find((a) => a.type === 'checking')
+          const accId = accountId ?? checking?.id ?? state.accounts[0]?.id
+          if (!accId) return {}
+          const news = buildImportedTransactions(parsed, {
+            accountId: accId,
+            categories,
+            existing: state.transactions,
+          })
+          count = news.length
+          if (news.length === 0 && categories === state.categories) return {}
+          const transactions = [...state.transactions, ...news]
+          return { categories, transactions, recurringRules: detectRecurring(transactions) }
+        })
+        return count
+      },
+
+      setTransactionCategory: (txId, categoryId) =>
+        set((state) => {
+          const tx = state.transactions.find((t) => t.id === txId)
+          if (!tx) return {}
+          const transactions = state.transactions.map((t) =>
+            t.id === txId ? { ...t, categoryId } : t,
+          )
+          // Lernen nur beim Setzen einer Kategorie, nicht beim Entfernen.
+          const categories = categoryId
+            ? learnRule(state.categories, categoryId, tx.counterparty)
+            : state.categories
+          return { transactions, categories }
+        }),
+
+      addCategory: (category) =>
+        set((state) => ({ categories: [...state.categories, category] })),
+
+      updateCategory: (id, patch) =>
+        set((state) => ({
+          categories: state.categories.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        })),
+
+      removeCategory: (id) =>
+        set((state) => ({
+          categories: state.categories.filter((c) => c.id !== id),
+          // Buchungen dieser Kategorie werden wieder „unkategorisiert".
+          transactions: state.transactions.map((t) =>
+            t.categoryId === id ? { ...t, categoryId: null } : t,
+          ),
+        })),
+
+      setAccountBalance: (accountId, balance) =>
+        set((state) => ({
+          accounts: state.accounts.map((a) => (a.id === accountId ? { ...a, balance } : a)),
         })),
     }),
     {
