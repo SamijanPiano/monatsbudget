@@ -1,0 +1,51 @@
+import { useBudgetStore } from '../../store/budgetStore'
+import { Card } from '../ui/Card'
+import { formatCents } from '../../lib/format'
+import { currentMonthId } from '../../lib/seed'
+import { disposableThisMonth, reichtEs } from '../../lib/forecast'
+
+/**
+ * „Verfügbar diesen Monat" — die zentrale Zahl, automatisch aus Kontostand,
+ * erkannten Daueraufträgen und den Buchungen berechnet. Wird in Übersicht und
+ * Buchungen verwendet.
+ */
+export function DisposableHero() {
+  const transactions = useBudgetStore((s) => s.transactions)
+  const accounts = useBudgetStore((s) => s.accounts)
+  const recurringRules = useBudgetStore((s) => s.recurringRules)
+
+  const checking = accounts.find((a) => a.type === 'checking') ?? accounts[0]
+  const key = currentMonthId()
+  const balance = checking?.balance ?? null
+
+  const disposable = disposableThisMonth({
+    balance: balance ?? 0,
+    recurring: recurringRules,
+    txs: transactions,
+    monthKey: key,
+  })
+  const reicht = reichtEs({
+    balance: balance ?? 0,
+    recurring: recurringRules,
+    txs: transactions,
+    monthKey: key,
+  })
+
+  return (
+    <Card className={`hero ${reicht.ok ? 'hero--ok' : 'hero--warn'}`}>
+      <span className="hero__label">Verfügbar diesen Monat</span>
+      <strong className="hero__value tnum">{formatCents(disposable)}</strong>
+      {balance === null ? (
+        <p className="hero__hint">
+          Trage in „Buchungen" deinen aktuellen Kontostand ein, damit die Berechnung stimmt.
+        </p>
+      ) : (
+        <p className="hero__hint">
+          {reicht.ok
+            ? `Dein Konto deckt die erwarteten Ausgaben — Puffer ${formatCents(reicht.diff)}.`
+            : `Achtung: Es fehlen voraussichtlich ${formatCents(Math.abs(reicht.diff))}.`}
+        </p>
+      )}
+    </Card>
+  )
+}

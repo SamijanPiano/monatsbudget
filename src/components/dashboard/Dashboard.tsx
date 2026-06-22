@@ -1,137 +1,149 @@
-import { useActiveMonth } from '../../hooks/useActiveMonth'
-import { useBudgetStore, useCashEnabled } from '../../store/budgetStore'
+import { useBudgetStore } from '../../store/budgetStore'
 import { Card, SectionTitle } from '../ui/Card'
-import { Money } from '../ui/Money'
-import { StatusBanner } from './StatusBanner'
-import { KpiCard } from './KpiCard'
 import { Donut, type DonutSegment } from '../charts/Donut'
 import { GoalCard } from '../goals/GoalCard'
-import { formatMoney } from '../../lib/format'
+import { DisposableHero } from '../transactions/DisposableHero'
+import { formatCents } from '../../lib/format'
+import { currentMonthId } from '../../lib/seed'
+import { sumForMonth } from '../../lib/forecast'
+import { monthlyCategoryStats } from '../../lib/summary'
+
+const PALETTE = [
+  'var(--gold)',
+  '#c98b5e',
+  'var(--bar)',
+  'var(--positive)',
+  '#b58df0',
+  '#e0a0a0',
+  '#8fb0d8',
+]
 
 export function Dashboard() {
-  const { month, calc, situation } = useActiveMonth()
-  const cashEnabled = useCashEnabled()
+  const transactions = useBudgetStore((s) => s.transactions)
+  const categories = useBudgetStore((s) => s.categories)
   const goals = useBudgetStore((s) => s.profile.goals)
+  const key = currentMonthId()
 
-  const totalExpenses = calc.fixedTotal + calc.variableTotal
-  const leftover = calc.incomeTotal - totalExpenses - calc.totalSavings
+  const summary = sumForMonth(transactions, key)
+  const stats = monthlyCategoryStats(transactions, categories, key)
+  const spendStats = stats.filter((s) => s.spent > 0)
+  const budgetStats = stats.filter((s) => s.budget !== null && s.budget > 0)
 
-  const segments: DonutSegment[] = [
-    { label: 'Feste Abzüge', value: calc.fixedTotal, color: 'var(--gold)' },
-    { label: 'Variable Ausgaben', value: calc.variableTotal, color: '#c98b5e' },
-    { label: 'Sparen', value: calc.totalSavings, color: 'var(--positive)' },
-    { label: 'Frei übrig', value: Math.max(0, leftover), color: 'var(--bar)' },
-  ]
+  const segments: DonutSegment[] = spendStats.map((s, i) => ({
+    label: s.label,
+    value: s.spent,
+    color: PALETTE[i % PALETTE.length],
+  }))
+
+  const goalsCard = goals.length > 0 && (
+    <Card>
+      <SectionTitle title="Deine Ziele" />
+      <div className="goals-list">
+        {goals.map((g) => (
+          <GoalCard key={g.id} goal={g} />
+        ))}
+      </div>
+    </Card>
+  )
+
+  if (transactions.length === 0) {
+    return (
+      <div className="view-stack">
+        <DisposableHero />
+        <Card>
+          <div className="empty">
+            <h2 className="empty__title">Noch keine Auswertung</h2>
+            <p className="empty__text">
+              Importiere unter „Buchungen" deinen ersten Bankauszug — danach erscheinen
+              hier deine Ausgaben-Aufteilung und der Budget-Vergleich automatisch.
+            </p>
+          </div>
+        </Card>
+        {goalsCard}
+      </div>
+    )
+  }
 
   return (
     <div className="view-stack">
-      <StatusBanner situation={situation} currentKonto={month.currentKonto} />
+      <DisposableHero />
 
-      {goals.length > 0 && (
+      <Card>
+        <SectionTitle title="Diesen Monat" />
+        <div className="result-list">
+          <div className="result-row">
+            <span>Einnahmen</span>
+            <span className="tnum text-positive">{formatCents(summary.income)}</span>
+          </div>
+          <div className="result-row">
+            <span>Ausgaben</span>
+            <span className="tnum text-negative">{formatCents(summary.expenses)}</span>
+          </div>
+          <div className="result-row result-row--total">
+            <span>Saldo</span>
+            <span className={`tnum ${summary.net < 0 ? 'text-negative' : 'text-positive'}`}>
+              {formatCents(summary.net)}
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      {segments.length > 0 && (
         <Card>
-          <SectionTitle title="Deine Ziele" />
-          <div className="goals-list">
-            {goals.map((g) => <GoalCard key={g.id} goal={g} />)}
+          <SectionTitle title="Wohin geht dein Geld?" hint="Ausgaben nach Kategorie" />
+          <div className="allocation">
+            <Donut
+              segments={segments}
+              center={
+                <div className="donut__label">
+                  <span className="donut__label-sub">Ausgaben</span>
+                  <span className="donut__label-value tnum">{formatCents(summary.expenses)}</span>
+                </div>
+              }
+            />
+            <ul className="allocation__legend" aria-label="Ausgaben nach Kategorie">
+              {segments.map((s) => (
+                <li key={s.label}>
+                  <span className="allocation__dot" style={{ background: s.color }} aria-hidden="true" />
+                  <span className="allocation__name">{s.label}</span>
+                  <span className="allocation__value tnum">{formatCents(s.value)}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </Card>
       )}
 
-      <div className="kpi-grid">
-        <KpiCard
-          label="Einnahmen"
-          value={calc.incomeTotal}
-          accent="gold"
-          sub={cashEnabled ? `Konto ${formatMoney(calc.incomeKonto)} · Bar ${formatMoney(calc.incomeBar)}` : undefined}
-        />
-        <KpiCard
-          label="Ausgaben"
-          value={totalExpenses}
-          accent="negative"
-          sub={`Fix ${formatMoney(calc.fixedTotal)} · Variabel ${formatMoney(calc.variableTotal)}`}
-        />
-        <KpiCard label="Gespart" value={calc.totalSavings} accent="positive" />
-        <KpiCard
-          label="Frei verfügbar"
-          value={leftover}
-          signed
-          accent="bar"
-          sub="Einnahmen − Ausgaben − Sparen"
-        />
-      </div>
-
-      <Card>
-        <SectionTitle title="Wohin geht dein Geld?" hint="Aufteilung deiner Einnahmen" />
-        <div className="allocation">
-          <Donut
-            segments={segments}
-            center={
-              <div className="donut__label">
-                <span className="donut__label-sub">Einnahmen</span>
-                <span className="donut__label-value tnum">
-                  {formatMoney(calc.incomeTotal)}
-                </span>
-              </div>
-            }
-          />
-          <ul className="allocation__legend" aria-label="Budgetaufteilung">
-            {segments.map((s) => (
-              <li key={s.label}>
-                <span
-                  className="allocation__dot"
-                  style={{ background: s.color }}
-                  aria-hidden="true"
-                />
-                <span className="allocation__name">{s.label}</span>
-                <Money value={s.value} className="allocation__value" />
-              </li>
-            ))}
-          </ul>
-        </div>
-      </Card>
-
-      <div className="channel-grid">
+      {budgetStats.length > 0 && (
         <Card>
-          <SectionTitle title="Konto" />
-          <div className="result-list">
-            <div className="result-row">
-              <span>Einnahmen</span>
-              <Money value={cashEnabled ? calc.incomeKonto : calc.incomeTotal} tone="konto" />
-            </div>
-            <div className="result-row">
-              <span>− Feste Abzüge</span>
-              <Money value={calc.fixedTotal} />
-            </div>
-            <div className="result-row">
-              <span>− Variable Ausgaben</span>
-              <Money value={cashEnabled ? calc.variableKonto : calc.variableTotal} />
-            </div>
-            <div className="result-row result-row--total">
-              <span>Nach Abzügen</span>
-              <Money value={calc.kontoAfterDeductions} signed />
-            </div>
+          <SectionTitle title="Budgets" hint="Geplant vs. ausgegeben" />
+          <div className="budget-list">
+            {budgetStats.map((s) => {
+              const budget = s.budget ?? 0
+              const ratio = budget > 0 ? Math.min(1, s.spent / budget) : 0
+              const over = s.spent > budget
+              return (
+                <div key={s.categoryId ?? 'un'} className="budget-row">
+                  <div className="budget-row__head">
+                    <span className="budget-row__label">{s.label}</span>
+                    <span className={`budget-row__nums tnum ${over ? 'text-negative' : 'text-muted'}`}>
+                      {formatCents(s.spent)} / {formatCents(budget)}
+                    </span>
+                  </div>
+                  <div className="budget-row__track">
+                    <div
+                      className={`budget-row__fill ${over ? 'budget-row__fill--over' : ''}`}
+                      style={{ width: `${ratio * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </Card>
+      )}
 
-        {cashEnabled && (
-          <Card>
-            <SectionTitle title="Bar" />
-            <div className="result-list">
-              <div className="result-row">
-                <span>Einnahmen</span>
-                <Money value={calc.incomeBar} tone="bar" />
-              </div>
-              <div className="result-row">
-                <span>− Variable Ausgaben</span>
-                <Money value={calc.variableBar} />
-              </div>
-              <div className="result-row result-row--total">
-                <span>Nach Ausgaben</span>
-                <Money value={calc.barAfterExpenses} signed />
-              </div>
-            </div>
-          </Card>
-        )}
-      </div>
+      {goalsCard}
     </div>
   )
 }

@@ -4,9 +4,10 @@ import type { Transaction } from '../../types/budget'
 import { Card, SectionTitle } from '../ui/Card'
 import { formatCents, formatMonthId } from '../../lib/format'
 import { currentMonthId } from '../../lib/seed'
-import { disposableThisMonth, reichtEs, sumForMonth, monthKey } from '../../lib/forecast'
+import { sumForMonth, monthKey } from '../../lib/forecast'
 import { ImportButton } from './ImportButton'
 import { CategorySelect } from './CategorySelect'
+import { DisposableHero } from './DisposableHero'
 
 /** Sortiert Buchungen nach Datum absteigend und gruppiert sie nach Monat. */
 function groupByMonth(txs: Transaction[]): [string, Transaction[]][] {
@@ -24,7 +25,6 @@ function groupByMonth(txs: Transaction[]): [string, Transaction[]][] {
 export function TransactionsView() {
   const transactions = useBudgetStore((s) => s.transactions)
   const accounts = useBudgetStore((s) => s.accounts)
-  const recurringRules = useBudgetStore((s) => s.recurringRules)
   const setAccountBalance = useBudgetStore((s) => s.setAccountBalance)
 
   const checking = accounts.find((a) => a.type === 'checking') ?? accounts[0]
@@ -33,18 +33,6 @@ export function TransactionsView() {
   const groups = useMemo(() => groupByMonth(transactions), [transactions])
 
   const balance = checking?.balance ?? null
-  const disposable = disposableThisMonth({
-    balance: balance ?? 0,
-    recurring: recurringRules,
-    txs: transactions,
-    monthKey: key,
-  })
-  const reicht = reichtEs({
-    balance: balance ?? 0,
-    recurring: recurringRules,
-    txs: transactions,
-    monthKey: key,
-  })
   const summary = sumForMonth(transactions, key)
 
   if (transactions.length === 0) {
@@ -67,21 +55,7 @@ export function TransactionsView() {
 
   return (
     <div className="view-stack">
-      <Card className={`hero ${reicht.ok ? 'hero--ok' : 'hero--warn'}`}>
-        <span className="hero__label">Verfügbar diesen Monat</span>
-        <strong className="hero__value tnum">{formatCents(disposable)}</strong>
-        {balance === null ? (
-          <p className="hero__hint">
-            Trage deinen aktuellen Kontostand ein, damit die Berechnung stimmt.
-          </p>
-        ) : (
-          <p className="hero__hint">
-            {reicht.ok
-              ? `Dein Konto deckt die erwarteten Ausgaben — Puffer ${formatCents(reicht.diff)}.`
-              : `Achtung: Es fehlen voraussichtlich ${formatCents(Math.abs(reicht.diff))}.`}
-          </p>
-        )}
-      </Card>
+      <DisposableHero />
 
       <Card>
         <SectionTitle title="Aktueller Kontostand" hint="Basis für die Prognose" />

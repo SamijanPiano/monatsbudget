@@ -24,4 +24,4 @@ export const TABS: TabDef[] = [
 ]
 
 /** Auf welchen Tabs der Monats-Umschalter im Kopf sinnvoll ist. */
-export const BUDGET_TABS: TabId[] = ['dashboard', 'history']
+export const BUDGET_TABS: TabId[] = ['history']
