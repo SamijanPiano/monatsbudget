@@ -2,6 +2,7 @@ import type { Dispatch } from 'react'
 import type { OnboardingAction, OnboardingState, GoalChoice } from '../../lib/onboarding'
 import { IconTarget, IconTrendingDown, IconShield, IconEye, IconWallet, IconSparkles } from '../ui/icons'
 import { NumberInput } from '../ui/NumberInput'
+import { ImportButton } from '../transactions/ImportButton'
 
 interface StepProps {
   state: OnboardingState
@@ -122,9 +123,17 @@ export function StepCash({ state, dispatch }: StepProps) {
 export function StepQuickstart({ state, dispatch }: StepProps) {
   return (
     <div className="wizard-step">
-      <h2 className="wizard-step__title">Schnellstart (optional)</h2>
+      <h2 className="wizard-step__title">Schnellstart</h2>
       <p className="wizard-step__sub">
-        Trag ein ungefähres monatliches Einkommen und deine größten Ausgaben ein — du kannst alles später ändern.
+        Am einfachsten: Bankauszug (CSV oder CAMT.053-XML) importieren — die App füllt
+        Buchungen, Kategorien und die Prognose automatisch. Es verlassen keine Daten dein Gerät.
+      </p>
+      <div className="wizard-import">
+        <ImportButton />
+      </div>
+
+      <p className="wizard-step__sub wizard-step__sub--divider">
+        … oder trag deine Eckdaten von Hand ein (optional):
       </p>
 
       <div className="quickstart-section">

@@ -329,3 +329,14 @@
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+
+.wizard-import {
+  display: flex;
+  justify-content: center;
+  margin: var(--space-4) 0;
+}
+
+.wizard-step__sub--divider {
+  margin-top: var(--space-5);
+  opacity: 0.75;
+}
