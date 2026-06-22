@@ -1,0 +1,26 @@
+# Cloudflare Worker config for the Monatsbudget bank-sync backend.
+#
+# Secrets are NOT stored here. Set them with `wrangler secret put`:
+#   wrangler secret put ENABLE_APP_ID
+#   wrangler secret put ENABLE_PRIVATE_KEY
+#   wrangler secret put APP_TOKEN
+# ALLOWED_ORIGIN is a plain var (not secret) and can live in [vars] below.
+#
+# See SETUP.md for the full step-by-step.
+
+name = "monatsbudget-bank-backend"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# Non-secret config. Override per-deploy if needed.
+[vars]
+ALLOWED_ORIGIN = "https://samijanpiano.github.io"
+
+# KV namespace storing the Enable Banking session + account uids.
+# Create it once with:
+#   wrangler kv namespace create SESSIONS
+# then paste the returned id below (and a preview_id for `wrangler dev`).
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_KV_PREVIEW_ID"
