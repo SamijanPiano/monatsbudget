@@ -41,7 +41,10 @@ interface BudgetActions {
   addGoal: (goal: Goal) => void
   updateGoal: (id: string, patch: Partial<Goal>) => void
   removeGoal: (id: string) => void
-  replaceState: (next: Pick<BudgetState, 'months' | 'activeMonthId' | 'settings'>) => void
+  replaceState: (
+    next: Pick<BudgetState, 'months' | 'activeMonthId' | 'settings'> &
+      Partial<Pick<BudgetState, 'transactions' | 'categories' | 'accounts' | 'recurringRules'>>,
+  ) => void
   // Transaktions-Schicht (v3)
   importParsed: (parsed: ParsedTransaction[], accountId?: string) => number
   setTransactionCategory: (txId: string, categoryId: string | null) => void
@@ -235,10 +238,10 @@ export const useBudgetStore = create<BudgetStore>()(
           activeMonthId: next.activeMonthId,
           settings: { ...DEFAULT_SETTINGS, ...next.settings },
           profile: state.profile,
-          transactions: state.transactions,
-          categories: state.categories,
-          accounts: state.accounts,
-          recurringRules: state.recurringRules,
+          transactions: next.transactions ?? state.transactions,
+          categories: next.categories ?? state.categories,
+          accounts: next.accounts ?? state.accounts,
+          recurringRules: next.recurringRules ?? state.recurringRules,
         })),
 
       importParsed: (parsed, accountId) => {

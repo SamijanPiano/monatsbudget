@@ -2,15 +2,28 @@
 // Ein Backup umfasst sowohl das Budget als auch die Schulden/Auslagen (Saldo).
 // Alt-Backups (nur Budget bzw. nur Saldo) werden weiterhin erkannt.
 
-import type { BudgetState, LineItem, Month } from '../types/budget'
+import type {
+  Account,
+  BudgetState,
+  Category,
+  CategoryKind,
+  CategoryRule,
+  LineItem,
+  Month,
+  RecurringRule,
+  Transaction,
+} from '../types/budget'
 import type { SaldoState } from '../types/saldo'
 import { DEFAULT_SETTINGS } from './seed'
 import { createId } from './id'
 import { sanitizeSaldoState, isSaldoBackup } from './saldoBackup'
 
-export const BACKUP_VERSION = 1
+// v2: Backup umfasst zusätzlich die Transaktions-Schicht (transactions/
+// categories/accounts/recurringRules). Alt-Backups (v1, nur Monate) bleiben lesbar.
+export const BACKUP_VERSION = 2
 
-export type BackupPayload = Pick<BudgetState, 'months' | 'activeMonthId' | 'settings'>
+export type BackupPayload = Pick<BudgetState, 'months' | 'activeMonthId' | 'settings'> &
+  Partial<Pick<BudgetState, 'transactions' | 'categories' | 'accounts' | 'recurringRules'>>
 
 export interface UnifiedBackup {
   budget?: BackupPayload
@@ -24,6 +37,10 @@ export interface BackupFile {
   months: Record<string, Month>
   activeMonthId: string
   settings: BudgetState['settings']
+  transactions: Transaction[]
+  categories: Category[]
+  accounts: Account[]
+  recurringRules: RecurringRule[]
   saldo: SaldoState
 }
 
@@ -67,6 +84,81 @@ function coerceMonth(id: string, raw: unknown): Month {
 
 const MONTH_ID_RE = /^\d{4}-\d{2}$/
 
+// ── Transaktions-Schicht (untrusted Input absichern) ─────────────────────────
+
+/** Vorzeichenbehafteter Cent-Betrag: ganzzahlig, endlich. */
+function coerceSignedCents(value: unknown): number {
+  return isNumber(value) ? Math.round(value) : 0
+}
+
+function coerceStr(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+const CATEGORY_KINDS: CategoryKind[] = ['income', 'fixed', 'variable', 'savings', 'transfer', 'ignore']
+
+function coerceTransaction(raw: unknown): Transaction {
+  const r = (raw ?? {}) as Record<string, unknown>
+  return {
+    id: coerceStr(r.id, createId()),
+    date: coerceStr(r.date),
+    amount: coerceSignedCents(r.amount),
+    counterparty: coerceStr(r.counterparty),
+    purpose: coerceStr(r.purpose),
+    categoryId: typeof r.categoryId === 'string' ? r.categoryId : null,
+    accountId: coerceStr(r.accountId),
+    source: r.source === 'sync' || r.source === 'manual' ? r.source : 'import',
+    hash: coerceStr(r.hash, createId()),
+  }
+}
+
+function coerceCategoryRule(raw: unknown): CategoryRule | null {
+  const r = (raw ?? {}) as Record<string, unknown>
+  const field = r.field === 'purpose' || r.field === 'counterparty' ? r.field : null
+  const match =
+    r.match === 'equals' || r.match === 'regex' || r.match === 'contains' ? r.match : null
+  if (!field || !match || typeof r.value !== 'string') return null
+  return { field, match, value: r.value }
+}
+
+function coerceCategory(raw: unknown): Category {
+  const r = (raw ?? {}) as Record<string, unknown>
+  const rules = Array.isArray(r.rules)
+    ? r.rules.map(coerceCategoryRule).filter((x): x is CategoryRule => x !== null)
+    : []
+  return {
+    id: coerceStr(r.id, createId()),
+    label: coerceStr(r.label),
+    kind: CATEGORY_KINDS.includes(r.kind as CategoryKind) ? (r.kind as CategoryKind) : 'variable',
+    budget: isNumber(r.budget) ? Math.round(r.budget) : null,
+    rules,
+    icon: typeof r.icon === 'string' ? r.icon : undefined,
+  }
+}
+
+function coerceAccount(raw: unknown): Account {
+  const r = (raw ?? {}) as Record<string, unknown>
+  return {
+    id: coerceStr(r.id, createId()),
+    name: coerceStr(r.name, 'Konto'),
+    type: r.type === 'cash' ? 'cash' : 'checking',
+    balance: isNumber(r.balance) ? Math.round(r.balance) : null,
+    iban: typeof r.iban === 'string' ? r.iban : undefined,
+  }
+}
+
+function coerceRecurring(raw: unknown): RecurringRule {
+  const r = (raw ?? {}) as Record<string, unknown>
+  return {
+    id: coerceStr(r.id, createId()),
+    counterparty: coerceStr(r.counterparty),
+    amountApprox: coerceSignedCents(r.amountApprox),
+    cadence: 'monthly',
+    categoryId: typeof r.categoryId === 'string' ? r.categoryId : null,
+    nextExpected: coerceStr(r.nextExpected),
+  }
+}
+
 /** Versucht, Budget-Daten aus einem Objekt zu lesen; null wenn keine Monate. */
 function coerceBudget(obj: Record<string, unknown>): BackupPayload | null {
   if (typeof obj.months !== 'object' || !obj.months) return null
@@ -90,7 +182,15 @@ function coerceBudget(obj: Record<string, unknown>): BackupPayload | null {
     savingsGoal: isNumber(rawSettings.savingsGoal) ? rawSettings.savingsGoal : 0,
   }
 
-  return { months, activeMonthId, settings }
+  const payload: BackupPayload = { months, activeMonthId, settings }
+  // Transaktions-Schicht nur übernehmen, wenn vorhanden (sonst undefined lassen,
+  // damit ein Alt-Backup beim Restore die aktuellen Transaktionen nicht löscht).
+  if (Array.isArray(obj.transactions)) payload.transactions = obj.transactions.map(coerceTransaction)
+  if (Array.isArray(obj.categories)) payload.categories = obj.categories.map(coerceCategory)
+  if (Array.isArray(obj.accounts)) payload.accounts = obj.accounts.map(coerceAccount)
+  if (Array.isArray(obj.recurringRules))
+    payload.recurringRules = obj.recurringRules.map(coerceRecurring)
+  return payload
 }
 
 function parseJsonObject(text: string): Record<string, unknown> {
@@ -115,6 +215,10 @@ export function buildBackup(state: BackupPayload, saldo: SaldoState = { people: 
     months: state.months,
     activeMonthId: state.activeMonthId,
     settings: state.settings,
+    transactions: state.transactions ?? [],
+    categories: state.categories ?? [],
+    accounts: state.accounts ?? [],
+    recurringRules: state.recurringRules ?? [],
     saldo,
   }
 }

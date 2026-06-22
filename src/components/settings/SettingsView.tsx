@@ -27,8 +27,12 @@ export function SettingsView() {
   const cashEnabled = useCashEnabled()
 
   const handleExport = () => {
-    const { months, activeMonthId, settings } = useBudgetStore.getState()
-    const json = serializeBackup({ months, activeMonthId, settings }, saldoSnapshot())
+    const { months, activeMonthId, settings, transactions, categories, accounts, recurringRules } =
+      useBudgetStore.getState()
+    const json = serializeBackup(
+      { months, activeMonthId, settings, transactions, categories, accounts, recurringRules },
+      saldoSnapshot(),
+    )
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')

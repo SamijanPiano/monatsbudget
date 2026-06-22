@@ -111,3 +111,38 @@ describe('parseUnifiedBackup', () => {
     expect(() => parseUnifiedBackup('{"foo":1}')).toThrow()
   })
 })
+
+describe('Backup mit Transaktions-Schicht', () => {
+  const rich = {
+    ...state,
+    transactions: [
+      { id: 't1', date: '2026-06-01', amount: -1299, counterparty: 'REWE', purpose: 'Einkauf', categoryId: 'c1', accountId: 'a1', source: 'import' as const, hash: 'h1' },
+      { id: 't2', date: '2026-06-02', amount: 250000, counterparty: 'AG', purpose: 'Lohn', categoryId: null, accountId: 'a1', source: 'import' as const, hash: 'h2' },
+    ],
+    categories: [{ id: 'c1', label: 'Lebensmittel', kind: 'variable' as const, budget: 30000, rules: [] }],
+    accounts: [{ id: 'a1', name: 'Konto', type: 'checking' as const, balance: 100000 }],
+    recurringRules: [],
+  }
+
+  it('roundtrip erhält Transaktionen, Kategorien und Konten', () => {
+    const parsed = parseBackup(serializeBackup(rich))
+    expect(parsed.transactions).toHaveLength(2)
+    expect(parsed.transactions?.[0].amount).toBe(-1299)
+    expect(parsed.categories?.[0].label).toBe('Lebensmittel')
+    expect(parsed.categories?.[0].budget).toBe(30000)
+    expect(parsed.accounts?.[0].balance).toBe(100000)
+  })
+
+  it('behält negative (vorzeichenbehaftete) Beträge bei Transaktionen', () => {
+    const parsed = parseBackup(serializeBackup(rich))
+    expect(parsed.transactions?.[0].amount).toBeLessThan(0)
+    expect(parsed.transactions?.[1].amount).toBe(250000)
+  })
+
+  it('altes Backup ohne Transaktionsschicht: Felder bleiben undefined', () => {
+    const parsed = parseBackup('{"months":{"2026-06":{"income":[]}}}')
+    expect(parsed.transactions).toBeUndefined()
+    expect(parsed.categories).toBeUndefined()
+    expect(parsed.accounts).toBeUndefined()
+  })
+})
