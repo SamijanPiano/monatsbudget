@@ -9,6 +9,7 @@ import { GoalCard } from '../goals/GoalCard'
 import { serializeBackup, parseUnifiedBackup } from '../../lib/backup'
 import { formatMonthId } from '../../lib/format'
 import { useSaldoStore, saldoSnapshot } from '../../store/saldoStore'
+import { BankSyncSection } from '../sync/BankSyncSection'
 
 export function SettingsView() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -65,6 +66,8 @@ export function SettingsView() {
 
   return (
     <div className="view-stack">
+      <BankSyncSection />
+
       <Card>
         <SectionTitle title="Sparziel" hint="Optionales langfristiges Ziel (0 = aus)" />
         <div className="savings-field savings-field--wide">
