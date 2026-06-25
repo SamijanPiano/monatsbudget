@@ -11,7 +11,7 @@ import type { OnboardingResult } from '../lib/onboarding'
 import type { ParsedTransaction } from '../lib/import/types'
 import { buildImportedTransactions } from '../lib/ingest'
 import { detectRecurring } from '../lib/recurring'
-import { learnRule } from '../lib/categorize'
+import { learnRule, categorizeAll } from '../lib/categorize'
 import { defaultCategories } from '../lib/categorizeSeed'
 
 export type Section = 'income' | 'fixed' | 'variable'
@@ -195,7 +195,14 @@ export const useBudgetStore = create<BudgetStore>()(
         set((state) => ({ settings: { ...state.settings, ...patch } })),
 
       setCashEnabled: (value) =>
-        set((state) => ({ profile: { ...state.profile, cashEnabled: value } })),
+        set((state) => {
+          const hasCash = state.accounts.some((a) => a.type === 'cash')
+          const accounts =
+            value && !hasCash
+              ? [...state.accounts, { id: createId(), name: 'Bargeld', type: 'cash' as const, balance: null }]
+              : state.accounts
+          return { accounts, profile: { ...state.profile, cashEnabled: value } }
+        }),
 
       completeOnboarding: (result) =>
         set((state) => {
@@ -259,7 +266,8 @@ export const useBudgetStore = create<BudgetStore>()(
           })
           count = news.length
           if (news.length === 0 && categories === state.categories) return {}
-          const transactions = [...state.transactions, ...news]
+          const merged = [...state.transactions, ...news]
+          const transactions = categorizeAll(merged, categories)
           return { categories, transactions, recurringRules: detectRecurring(transactions) }
         })
         return count
@@ -276,7 +284,9 @@ export const useBudgetStore = create<BudgetStore>()(
           const categories = categoryId
             ? learnRule(state.categories, categoryId, tx.counterparty)
             : state.categories
-          return { transactions, categories }
+          // Rückwirkend alle noch unkategorisierten Buchungen mit neuen Regeln zuordnen.
+          const recategorized = categorizeAll(transactions, categories)
+          return { transactions: recategorized, categories }
         }),
 
       addCategory: (category) =>

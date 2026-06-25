@@ -22,5 +22,5 @@ ALLOWED_ORIGIN = "https://samijanpiano.github.io"
 # then paste the returned id below (and a preview_id for `wrangler dev`).
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
-preview_id = "REPLACE_WITH_KV_PREVIEW_ID"
+id = "b68721c20eee4add9f90b9e592e8944b"
+preview_id = "04f6c724887142a7852ba089d190f335"

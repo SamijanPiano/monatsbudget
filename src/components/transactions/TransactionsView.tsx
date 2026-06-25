@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useBudgetStore } from '../../store/budgetStore'
+import { useMemo, useState, useEffect } from 'react'
+import { useBudgetStore, useCashEnabled } from '../../store/budgetStore'
 import type { Transaction } from '../../types/budget'
 import { Card, SectionTitle } from '../ui/Card'
 import { formatCents, formatMonthId } from '../../lib/format'
@@ -8,6 +8,7 @@ import { sumForMonth, monthKey } from '../../lib/forecast'
 import { ImportButton } from './ImportButton'
 import { CategorySelect } from './CategorySelect'
 import { DisposableHero } from './DisposableHero'
+import { RecurringCard } from './RecurringCard'
 
 /** Sortiert Buchungen nach Datum absteigend und gruppiert sie nach Monat. */
 function groupByMonth(txs: Transaction[]): [string, Transaction[]][] {
@@ -26,8 +27,10 @@ export function TransactionsView() {
   const transactions = useBudgetStore((s) => s.transactions)
   const accounts = useBudgetStore((s) => s.accounts)
   const setAccountBalance = useBudgetStore((s) => s.setAccountBalance)
+  const cashEnabled = useCashEnabled()
 
   const checking = accounts.find((a) => a.type === 'checking') ?? accounts[0]
+  const cashAccount = accounts.find((a) => a.type === 'cash')
   const key = currentMonthId()
 
   const groups = useMemo(() => groupByMonth(transactions), [transactions])
@@ -58,11 +61,17 @@ export function TransactionsView() {
       <DisposableHero />
 
       <Card>
-        <SectionTitle title="Aktueller Kontostand" hint="Basis für die Prognose" />
-        <BalanceEditor
-          value={balance}
-          onChange={(cents) => checking && setAccountBalance(checking.id, cents)}
-        />
+        <SectionTitle title="Aktueller Kontostand" hint="Aus Bank-Sync · Basis für die Prognose" />
+        <BalanceDisplay value={balance} />
+        {cashEnabled && cashAccount && (
+          <div style={{ marginTop: 'var(--space-3)' }}>
+            <SectionTitle title="Bargeld" hint="Manuell eintragen" />
+            <BalanceEditor
+              value={cashAccount.balance}
+              onChange={(cents) => setAccountBalance(cashAccount.id, cents)}
+            />
+          </div>
+        )}
         <div className="result-list" style={{ marginTop: 'var(--space-3)' }}>
           <div className="result-row">
             <span>Einnahmen {formatMonthId(key)}</span>
@@ -74,6 +83,8 @@ export function TransactionsView() {
           </div>
         </div>
       </Card>
+
+      <RecurringCard />
 
       <Card>
         <div className="tx-head">
@@ -107,6 +118,17 @@ export function TransactionsView() {
   )
 }
 
+function BalanceDisplay({ value }: { value: number | null }) {
+  return (
+    <div className="balance-editor">
+      <span className="balance-editor__input tnum balance-editor__readonly">
+        {value === null ? '—' : (value / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </span>
+      <span className="balance-editor__cur">€</span>
+    </div>
+  )
+}
+
 interface BalanceEditorProps {
   value: number | null
   onChange: (cents: number) => void
@@ -114,6 +136,10 @@ interface BalanceEditorProps {
 
 function BalanceEditor({ value, onChange }: BalanceEditorProps) {
   const [text, setText] = useState(value === null ? '' : (value / 100).toFixed(2))
+
+  useEffect(() => {
+    setText(value === null ? '' : (value / 100).toFixed(2))
+  }, [value])
 
   function commit() {
     const normalized = text.replace(/\./g, '').replace(',', '.')
@@ -130,7 +156,7 @@ function BalanceEditor({ value, onChange }: BalanceEditorProps) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
-        aria-label="Aktueller Kontostand in Euro"
+        aria-label="Bargeldbestand in Euro"
       />
       <span className="balance-editor__cur">€</span>
     </div>

@@ -15,17 +15,20 @@ export function DisposableHero() {
   const recurringRules = useBudgetStore((s) => s.recurringRules)
 
   const checking = accounts.find((a) => a.type === 'checking') ?? accounts[0]
+  const cashAccount = accounts.find((a) => a.type === 'cash')
   const key = currentMonthId()
   const balance = checking?.balance ?? null
+  const cashBalance = cashAccount?.balance ?? 0
+  const totalBalance = (balance ?? 0) + cashBalance
 
   const disposable = disposableThisMonth({
-    balance: balance ?? 0,
+    balance: totalBalance,
     recurring: recurringRules,
     txs: transactions,
     monthKey: key,
   })
   const reicht = reichtEs({
-    balance: balance ?? 0,
+    balance: totalBalance,
     recurring: recurringRules,
     txs: transactions,
     monthKey: key,

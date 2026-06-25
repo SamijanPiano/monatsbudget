@@ -109,6 +109,83 @@
   color: var(--text-muted);
   font-size: var(--text-lg);
 }
+.balance-editor__readonly {
+  color: var(--text);
+  font-size: var(--text-lg);
+  text-align: right;
+  flex: 1;
+  user-select: text;
+}
+
+/* Dauerposten-Karte */
+.recurring__group {
+  margin-bottom: var(--space-4);
+}
+.recurring__group:last-child {
+  margin-bottom: 0;
+}
+.recurring__group-title {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  margin: 0 0 var(--space-2);
+}
+.recurring__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.recurring__row:last-child {
+  border-bottom: none;
+}
+.recurring__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.recurring__party {
+  font-size: var(--text-sm);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recurring__cat {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+.recurring__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.recurring__amount {
+  font-size: var(--text-sm);
+}
+.recurring__status {
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+}
+.recurring__status--upcoming {
+  background: color-mix(in srgb, var(--gold) 15%, transparent);
+  color: var(--gold);
+}
+.recurring__status--booked {
+  background: color-mix(in srgb, var(--green) 15%, transparent);
+  color: var(--green);
+}
+.recurring__status--next {
+  background: var(--surface-2);
+  color: var(--text-faint);
+}
 
 /* Buchungsliste */
 .tx-head {
