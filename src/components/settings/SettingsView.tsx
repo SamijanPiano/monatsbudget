@@ -7,11 +7,19 @@ import { NumberInput } from '../ui/NumberInput'
 import { IconDownload, IconUpload } from '../ui/icons'
 import { GoalCard } from '../goals/GoalCard'
 import { serializeBackup, parseUnifiedBackup } from '../../lib/backup'
+import { transactionsToCsv } from '../../lib/exportCsv'
+import { isPlus } from '../../lib/entitlements'
 import { formatMonthId } from '../../lib/format'
 import { useSaldoStore, saldoSnapshot } from '../../store/saldoStore'
 import { BankSyncSection } from '../sync/BankSyncSection'
+import { MoreHub } from '../layout/MoreHub'
+import type { TabId } from '../layout/nav'
 
-export function SettingsView() {
+interface SettingsViewProps {
+  onNavigate?: (tab: TabId) => void
+}
+
+export function SettingsView({ onNavigate }: SettingsViewProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
 
@@ -28,10 +36,27 @@ export function SettingsView() {
   const cashEnabled = useCashEnabled()
 
   const handleExport = () => {
-    const { months, activeMonthId, settings, transactions, categories, accounts, recurringRules } =
-      useBudgetStore.getState()
+    const {
+      months,
+      activeMonthId,
+      settings,
+      transactions,
+      categories,
+      accounts,
+      recurringRules,
+      contracts,
+    } = useBudgetStore.getState()
     const json = serializeBackup(
-      { months, activeMonthId, settings, transactions, categories, accounts, recurringRules },
+      {
+        months,
+        activeMonthId,
+        settings,
+        transactions,
+        categories,
+        accounts,
+        recurringRules,
+        contracts,
+      },
       saldoSnapshot(),
     )
     const blob = new Blob([json], { type: 'application/json' })
@@ -45,6 +70,31 @@ export function SettingsView() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
     setMessage({ text: 'Backup wurde heruntergeladen (Budget + Schulden).', ok: true })
+  }
+
+  const handleCsvExport = () => {
+    if (!isPlus(settings)) {
+      setMessage({ text: 'Der CSV-Export ist eine Plus-Funktion.', ok: false })
+      return
+    }
+    const { transactions, categories, accounts } = useBudgetStore.getState()
+    if (transactions.length === 0) {
+      setMessage({ text: 'Noch keine Buchungen zum Exportieren.', ok: false })
+      return
+    }
+    const csv = transactionsToCsv(transactions, categories, accounts)
+    // BOM voranstellen, damit Excel die Umlaute als UTF-8 erkennt.
+    const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const date = new Date().toISOString().slice(0, 10)
+    a.href = url
+    a.download = `monatsbudget-transaktionen-${date}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    setMessage({ text: 'CSV-Export wurde heruntergeladen.', ok: true })
   }
 
   const handleImportClick = () => fileRef.current?.click()
@@ -66,6 +116,8 @@ export function SettingsView() {
 
   return (
     <div className="view-stack">
+      {onNavigate && <MoreHub onNavigate={onNavigate} />}
+
       <BankSyncSection />
 
       <Card>
@@ -94,6 +146,10 @@ export function SettingsView() {
           </Button>
           <Button variant="outline" onClick={handleImportClick}>
             <IconUpload /> Backup importieren
+          </Button>
+          <Button variant="outline" onClick={handleCsvExport}>
+            <IconDownload /> CSV-Export
+            {!isPlus(settings) && <span className="plus-badge">Plus</span>}
           </Button>
           <input
             ref={fileRef}
@@ -195,6 +251,29 @@ export function SettingsView() {
           >
             Einrichtung neu starten
           </Button>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle
+          title="Plus (Test)"
+          hint="Schaltet Plus-Funktionen lokal frei — noch ohne echte Bezahlung"
+        />
+        <p className="settings-text">
+          Mit Plus: unbegrenzte Budgets, Langzeit-Historie in den Berichten, CSV-Export und die
+          Sparprognose. Dieser Schalter dient zum Ausprobieren.
+        </p>
+        <div className="settings-toggle-row">
+          <span className="settings-toggle-label">Plus aktiv</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isPlus(settings)}
+            className={`settings-toggle ${isPlus(settings) ? 'settings-toggle--on' : ''}`}
+            onClick={() => updateSettings({ plus: !isPlus(settings) })}
+          >
+            <span className="settings-toggle__knob" />
+          </button>
         </div>
       </Card>
 

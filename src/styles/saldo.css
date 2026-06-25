@@ -7,7 +7,7 @@
 }
 
 .sal-card {
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
@@ -113,14 +113,14 @@
   border-color: var(--border-strong);
 }
 .sal-action--primary {
-  color: #1a1408;
-  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  color: #ffffff;
+  background: var(--gold);
   border-color: transparent;
   box-shadow: var(--glow-gold);
 }
 .sal-action--primary:hover {
-  color: #1a1408;
-  filter: brightness(1.06);
+  color: #ffffff;
+  filter: brightness(1.08);
 }
 
 /* Segmented (Tabs) */
@@ -144,6 +144,7 @@
 .sal-seg.is-on {
   color: var(--gold);
   background: var(--gold-dim);
+  font-weight: 600;
 }
 
 .sal-section {
@@ -190,12 +191,13 @@
   padding: var(--space-3);
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  background: var(--surface);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .sal-balrow:hover {
-  background: var(--surface-hover);
-  border-color: var(--border-strong);
+  background: var(--surface-2);
+  border-color: var(--gold);
 }
 .sal-balrow__main {
   flex: 1;
@@ -364,12 +366,12 @@
   font-size: var(--text-sm);
 }
 .sal-date-input {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
   border-radius: 10px;
   padding: 0.4rem 0.5rem;
   color: var(--text);
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 .sal-entry-items,
@@ -536,12 +538,12 @@
   transform: scale(0.98);
 }
 .sal-btn--primary {
-  color: #1a1408;
-  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  color: #ffffff;
+  background: var(--gold);
   box-shadow: var(--glow-gold);
 }
 .sal-btn--primary:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.08);
 }
 .sal-btn--secondary {
   color: var(--text);
@@ -820,7 +822,7 @@
   flex-shrink: 0;
   border-radius: 7px;
   border: 1.5px solid var(--border-strong);
-  color: #1a1408;
+  color: #ffffff;
 }
 .sal-shopping-item.is-done .sal-shopping-check {
   background: var(--gold);

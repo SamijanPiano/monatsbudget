@@ -61,6 +61,10 @@ export interface Settings {
   locale: string
   /** Optionales langfristiges Sparziel (€). 0 = aus */
   savingsGoal: number
+  /** Plus-Tier lokal aktiv (Test-Schalter; noch keine echte Bezahlung). */
+  plus?: boolean
+  /** Überweisungen (PSD2 PIS) freigeschaltet. Standard aus — Sandbox-first. */
+  paymentsEnabled?: boolean
 }
 
 // ─── Transaktions-Schicht (v3) ──────────────────────────────────────────────
@@ -90,7 +94,7 @@ export interface Category {
   icon?: string
 }
 
-export type AccountType = 'checking' | 'cash'
+export type AccountType = 'checking' | 'cash' | 'paypal' | 'crypto' | 'broker' | 'credit'
 
 export interface Account {
   id: string
@@ -99,6 +103,12 @@ export interface Account {
   /** Aktueller Saldo in Cent. null = unbekannt. */
   balance: number | null
   iban?: string
+  /** Name des Instituts/Anbieters (z. B. „PayPal", „Trade Republic"). */
+  institution?: string
+  /** true = vom Nutzer manuell gepflegt (kein Bank-Sync). */
+  manual?: boolean
+  /** true = Schuld (Kreditkarte/Kredit) → zählt im Vermögen negativ. */
+  isLiability?: boolean
 }
 
 export interface Transaction {
@@ -129,6 +139,37 @@ export interface RecurringRule {
   nextExpected: string
 }
 
+export type ContractCadence = 'monthly' | 'quarterly' | 'yearly'
+export type ContractStatus = 'active' | 'canceled'
+
+/**
+ * Ein laufender Vertrag/Abo (Versicherung, Streaming, Miete, Strom …). Wird
+ * entweder aus erkannten Dauerposten abgeleitet (`source: 'detected'`) oder
+ * manuell gepflegt. Beträge in Cent (signed; Ausgaben negativ).
+ */
+export interface Contract {
+  id: string
+  /** Anzeigename, z. B. „Netflix" oder „KFZ-Versicherung". */
+  label: string
+  counterparty: string
+  categoryId: string | null
+  /** typischer Betrag in Cent (signed). */
+  amountApprox: number
+  cadence: ContractCadence
+  /** nächste erwartete Abbuchung im Format YYYY-MM-DD. */
+  nextDue: string
+  /** Kündigungsfrist in Tagen vor Vertragsende. */
+  noticePeriodDays?: number
+  /** Vertragsende / Verlängerungsdatum im Format YYYY-MM-DD. */
+  contractEnd?: string
+  /** Mindestlaufzeit in Monaten. */
+  minTermMonths?: number
+  status: ContractStatus
+  source: 'detected' | 'manual'
+  /** normalisierter Empfänger — Verknüpfung zu RecurringRule/Buchungen. */
+  linkedCounterpartyKey?: string
+}
+
 export interface BudgetState {
   months: Record<string, Month>
   activeMonthId: string
@@ -142,6 +183,8 @@ export interface BudgetState {
   accounts: Account[]
   /** v3: erkannte wiederkehrende Posten. */
   recurringRules: RecurringRule[]
+  /** v4: Verträge & Abos (erkannt oder manuell). */
+  contracts: Contract[]
 }
 
 /** Abgeleitete Werte eines Monats (entspricht den Excel-Formeln). */

@@ -258,6 +258,42 @@ export function IconSparkles({ size = 22, className }: IconProps) {
   )
 }
 
+export function IconBell({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z" />
+      <path d="M10.5 19a1.5 1.5 0 0 0 3 0" />
+    </svg>
+  )
+}
+
+export function IconBank({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M3 9.5l9-5.5 9 5.5" />
+      <path d="M5 9.5V19M10 9.5V19M14 9.5V19M19 9.5V19" />
+      <path d="M3 19h18" />
+    </svg>
+  )
+}
+
+export function IconSend({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M21 3L10.5 13.5M21 3l-6.5 18-4-8-8-4z" />
+    </svg>
+  )
+}
+
+export function IconPieChart({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M12 3a9 9 0 1 0 9 9h-9z" />
+      <path d="M12 3v9h9A9 9 0 0 0 12 3z" />
+    </svg>
+  )
+}
+
 export function IconAI({ size = 20, className }: IconProps) {
   return (
     <svg {...base(size)} className={className} aria-hidden="true">

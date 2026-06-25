@@ -4,10 +4,13 @@
 
 import type {
   Account,
+  AccountType,
   BudgetState,
   Category,
   CategoryKind,
   CategoryRule,
+  Contract,
+  ContractCadence,
   LineItem,
   Month,
   RecurringRule,
@@ -19,11 +22,14 @@ import { createId } from './id'
 import { sanitizeSaldoState, isSaldoBackup } from './saldoBackup'
 
 // v2: Backup umfasst zusätzlich die Transaktions-Schicht (transactions/
-// categories/accounts/recurringRules). Alt-Backups (v1, nur Monate) bleiben lesbar.
-export const BACKUP_VERSION = 2
+// categories/accounts/recurringRules). v3: Verträge + erweiterte Konto-Felder.
+// Alt-Backups (v1/v2) bleiben lesbar (fehlende Felder werden nicht angefasst).
+export const BACKUP_VERSION = 3
 
 export type BackupPayload = Pick<BudgetState, 'months' | 'activeMonthId' | 'settings'> &
-  Partial<Pick<BudgetState, 'transactions' | 'categories' | 'accounts' | 'recurringRules'>>
+  Partial<
+    Pick<BudgetState, 'transactions' | 'categories' | 'accounts' | 'recurringRules' | 'contracts'>
+  >
 
 export interface UnifiedBackup {
   budget?: BackupPayload
@@ -41,6 +47,7 @@ export interface BackupFile {
   categories: Category[]
   accounts: Account[]
   recurringRules: RecurringRule[]
+  contracts: Contract[]
   saldo: SaldoState
 }
 
@@ -136,14 +143,43 @@ function coerceCategory(raw: unknown): Category {
   }
 }
 
+const ACCOUNT_TYPES: AccountType[] = ['checking', 'cash', 'paypal', 'crypto', 'broker', 'credit']
+
 function coerceAccount(raw: unknown): Account {
   const r = (raw ?? {}) as Record<string, unknown>
   return {
     id: coerceStr(r.id, createId()),
     name: coerceStr(r.name, 'Konto'),
-    type: r.type === 'cash' ? 'cash' : 'checking',
+    type: ACCOUNT_TYPES.includes(r.type as AccountType) ? (r.type as AccountType) : 'checking',
     balance: isNumber(r.balance) ? Math.round(r.balance) : null,
     iban: typeof r.iban === 'string' ? r.iban : undefined,
+    institution: typeof r.institution === 'string' ? r.institution : undefined,
+    manual: typeof r.manual === 'boolean' ? r.manual : undefined,
+    isLiability: typeof r.isLiability === 'boolean' ? r.isLiability : undefined,
+  }
+}
+
+const CONTRACT_CADENCES: ContractCadence[] = ['monthly', 'quarterly', 'yearly']
+
+function coerceContract(raw: unknown): Contract {
+  const r = (raw ?? {}) as Record<string, unknown>
+  return {
+    id: coerceStr(r.id, createId()),
+    label: coerceStr(r.label),
+    counterparty: coerceStr(r.counterparty),
+    categoryId: typeof r.categoryId === 'string' ? r.categoryId : null,
+    amountApprox: coerceSignedCents(r.amountApprox),
+    cadence: CONTRACT_CADENCES.includes(r.cadence as ContractCadence)
+      ? (r.cadence as ContractCadence)
+      : 'monthly',
+    nextDue: coerceStr(r.nextDue),
+    noticePeriodDays: isNumber(r.noticePeriodDays) ? Math.round(r.noticePeriodDays) : undefined,
+    contractEnd: typeof r.contractEnd === 'string' ? r.contractEnd : undefined,
+    minTermMonths: isNumber(r.minTermMonths) ? Math.round(r.minTermMonths) : undefined,
+    status: r.status === 'canceled' ? 'canceled' : 'active',
+    source: r.source === 'manual' ? 'manual' : 'detected',
+    linkedCounterpartyKey:
+      typeof r.linkedCounterpartyKey === 'string' ? r.linkedCounterpartyKey : undefined,
   }
 }
 
@@ -190,6 +226,7 @@ function coerceBudget(obj: Record<string, unknown>): BackupPayload | null {
   if (Array.isArray(obj.accounts)) payload.accounts = obj.accounts.map(coerceAccount)
   if (Array.isArray(obj.recurringRules))
     payload.recurringRules = obj.recurringRules.map(coerceRecurring)
+  if (Array.isArray(obj.contracts)) payload.contracts = obj.contracts.map(coerceContract)
   return payload
 }
 
@@ -219,6 +256,7 @@ export function buildBackup(state: BackupPayload, saldo: SaldoState = { people: 
     categories: state.categories ?? [],
     accounts: state.accounts ?? [],
     recurringRules: state.recurringRules ?? [],
+    contracts: state.contracts ?? [],
     saldo,
   }
 }

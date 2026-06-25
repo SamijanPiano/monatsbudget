@@ -10,8 +10,8 @@
   overflow: hidden;
   border-radius: var(--radius-lg);
   padding: var(--space-5);
-  border: 1px solid var(--border-strong);
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 .status-banner.is-ok {
   box-shadow: var(--glow-positive);
@@ -68,11 +68,11 @@
   flex-shrink: 0;
 }
 .status-banner.is-ok .status-banner__icon {
-  color: #0c1f16;
+  color: #ffffff;
   background: var(--positive);
 }
 .status-banner.is-bad .status-banner__icon {
-  color: #2a0f0f;
+  color: #ffffff;
   background: var(--negative);
 }
 .status-banner__detail {
@@ -97,7 +97,7 @@
   padding: var(--space-4);
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  background: var(--surface);
   overflow: hidden;
 }
 .kpi::before {
@@ -330,12 +330,13 @@
 .history-table__link {
   color: var(--text);
   font-weight: 550;
-  padding: 0.2rem 0;
+  padding: 0.2rem 0.4rem;
   border-radius: 6px;
-  transition: color var(--dur-fast) var(--ease);
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .history-table__link:hover {
   color: var(--gold);
+  background: var(--gold-dim);
 }
 
 /* ---------- Einstellungen ---------- */
@@ -384,28 +385,30 @@
   height: 28px;
   border-radius: 999px;
   background: var(--surface-3);
-  border: none;
+  border: 1.5px solid var(--border-strong);
   cursor: pointer;
   position: relative;
-  transition: background var(--dur-fast);
+  transition: background var(--dur-fast), border-color var(--dur-fast);
   flex-shrink: 0;
 }
 .settings-toggle--on {
   background: var(--gold);
+  border-color: transparent;
 }
 .settings-toggle__knob {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 22px;
-  height: 22px;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: var(--text);
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
   transition: transform var(--dur-fast) var(--ease);
 }
 .settings-toggle--on .settings-toggle__knob {
   transform: translateX(20px);
-  background: #0a0908;
+  background: #ffffff;
 }
 
 /* ---------- GoalCard ---------- */

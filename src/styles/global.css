@@ -22,12 +22,6 @@ body {
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
-  background-image: radial-gradient(
-      120% 80% at 50% -10%,
-      var(--bg-grad-1) 0%,
-      var(--bg-grad-2) 60%
-    );
-  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-feature-settings: 'tnum' 1, 'cv01' 1;
@@ -73,6 +67,7 @@ input[type='number'] {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
   border-radius: 4px;
+  outline-color: #4F46E5;
 }
 
 /* Zahlen monospaced ausrichten */

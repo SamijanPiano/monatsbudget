@@ -1,10 +1,12 @@
 // Migration des persistierten Budget-States. Als reine Funktion testbar.
 // Kette: v1 -> v2 (fügt `profile` hinzu) -> v3 (fügt die Transaktions-Schicht
-// hinzu: transactions/categories/accounts/recurringRules). Jeder Schritt ist
+// hinzu: transactions/categories/accounts/recurringRules) -> v4 (fügt die
+// Vertrags-Schicht hinzu + ergänzt Account-Felder defensiv). Jeder Schritt ist
 // idempotent und verlustfrei — Bestandsdaten (Monate, Profil, Ziele) bleiben.
 
 import type {
   Account,
+  AccountType,
   BudgetState,
   Category,
   CategoryKind,
@@ -115,10 +117,31 @@ function addTransactionLayer(state: BudgetState): BudgetState {
   }
 }
 
-/** Hebt persistierten State auf die aktuelle Version (3). Idempotent. */
+/** Konten gelten als „Schuld", wenn es Kreditkarten/Kredite sind. */
+function liabilityDefault(type: AccountType): boolean {
+  return type === 'credit'
+}
+
+/** Konten ohne Bank-Sync (alle außer Giro) gelten als manuell gepflegt. */
+function manualDefault(type: AccountType): boolean {
+  return type !== 'checking'
+}
+
+/** v3 -> v4: Vertrags-Schicht ergänzen + fehlende Account-Felder ableiten. */
+function addContractLayer(state: BudgetState): BudgetState {
+  const accounts = (state.accounts ?? []).map((account) => ({
+    ...account,
+    manual: account.manual ?? manualDefault(account.type),
+    isLiability: account.isLiability ?? liabilityDefault(account.type),
+  }))
+  return { ...state, accounts, contracts: state.contracts ?? [] }
+}
+
+/** Hebt persistierten State auf die aktuelle Version (4). Idempotent. */
 export function migrateBudgetState(persisted: unknown, version: number): BudgetState {
   let state = persisted as BudgetState & { settings?: { savingsGoal?: number } }
   if (version < 2 || !state.profile) state = addProfile(state)
   if (version < 3 || !state.categories) state = addTransactionLayer(state)
+  if (version < 4 || !state.contracts) state = addContractLayer(state)
   return state
 }

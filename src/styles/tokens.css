@@ -1,42 +1,42 @@
-/* Design-Tokens — Dark Luxury.
-   Tiefes warmes Anthrazit, Champagner-Gold-Akzent, Konto=Gold / Bar=Mint,
+/* Design-Tokens — Light Clean.
+   Weißes System, Indigo als Hauptakzent, Konto=Indigo / Bar=Emerald,
    Grün=positiv / Rot=Defizit. */
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
   /* Flächen / Tiefe */
-  --bg: #0a0908;
-  --bg-grad-1: #14110d;
-  --bg-grad-2: #0a0908;
-  --surface: #16140f;
-  --surface-2: #1e1b15;
-  --surface-3: #262219;
-  --surface-hover: #2b271d;
-  --border: rgba(232, 211, 168, 0.08);
-  --border-strong: rgba(232, 211, 168, 0.16);
+  --bg: #F8F9FB;
+  --bg-grad-1: #EEF2FF;
+  --bg-grad-2: #F8F9FB;
+  --surface: #FFFFFF;
+  --surface-2: #F1F4F8;
+  --surface-3: #E8ECF2;
+  --surface-hover: #E3E8F0;
+  --border: rgba(0, 0, 0, 0.07);
+  --border-strong: rgba(0, 0, 0, 0.13);
 
   /* Text */
-  --text: #f6f1e7;
-  --text-muted: #b3aa97;
-  --text-faint: #968d7b;
+  --text: #111827;
+  --text-muted: #6B7280;
+  --text-faint: #9CA3AF;
 
-  /* Akzente */
-  --gold: #d8b878;
-  --gold-soft: #ecd9b0;
-  --gold-dim: rgba(216, 184, 120, 0.14);
+  /* Akzente — Indigo */
+  --gold: #4F46E5;
+  --gold-soft: #818CF8;
+  --gold-dim: rgba(79, 70, 229, 0.10);
 
   /* Kanäle */
-  --konto: #d8b878;
-  --konto-dim: rgba(216, 184, 120, 0.16);
-  --bar: #7fd7c4;
-  --bar-dim: rgba(127, 215, 196, 0.16);
+  --konto: #4F46E5;
+  --konto-dim: rgba(79, 70, 229, 0.10);
+  --bar: #10B981;
+  --bar-dim: rgba(16, 185, 129, 0.10);
 
   /* Semantik */
-  --positive: #74e2ad;
-  --positive-dim: rgba(116, 226, 173, 0.14);
-  --negative: #ff8585;
-  --negative-dim: rgba(255, 133, 133, 0.14);
+  --positive: #059669;
+  --positive-dim: rgba(5, 150, 105, 0.10);
+  --negative: #DC2626;
+  --negative-dim: rgba(220, 38, 38, 0.10);
 
   /* Typografie */
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI',
@@ -65,16 +65,18 @@
   --radius-lg: 24px;
   --radius-full: 999px;
 
-  /* Schatten & Glow */
-  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
-    0 18px 50px -24px rgba(0, 0, 0, 0.85);
-  --shadow-pop: 0 24px 70px -20px rgba(0, 0, 0, 0.9);
-  --glow-gold: 0 0 0 1px rgba(216, 184, 120, 0.3),
-    0 10px 40px -10px rgba(216, 184, 120, 0.22);
-  --glow-positive: 0 0 0 1px rgba(116, 226, 173, 0.3),
-    0 14px 44px -14px rgba(116, 226, 173, 0.25);
-  --glow-negative: 0 0 0 1px rgba(255, 133, 133, 0.3),
-    0 14px 44px -14px rgba(255, 133, 133, 0.25);
+  /* Schatten */
+  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.03) inset,
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.04);
+  --shadow-pop: 0 4px 24px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+  --glow-gold: 0 0 0 1px rgba(79, 70, 229, 0.18),
+    0 4px 20px rgba(79, 70, 229, 0.14);
+  --glow-positive: 0 0 0 1px rgba(5, 150, 105, 0.18),
+    0 4px 20px rgba(5, 150, 105, 0.12);
+  --glow-negative: 0 0 0 1px rgba(220, 38, 38, 0.18),
+    0 4px 20px rgba(220, 38, 38, 0.12);
 
   /* Motion */
   --dur-fast: 140ms;

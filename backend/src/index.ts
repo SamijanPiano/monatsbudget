@@ -8,6 +8,8 @@
  *   GET  /api/callback?code=&state=                                       -> 302 redirect
  *   GET  /api/accounts                                                    -> [account]
  *   GET  /api/transactions?accountId=&dateFrom=YYYY-MM-DD                 -> [transaction]
+ *   POST /api/payments/initiate { payment, redirectUrl }                 -> { authUrl, paymentId }
+ *   GET  /api/payments/status?paymentId=                                 -> { status }
  *
  * Single-user design: one shared X-App-Token, one stored bank session in KV.
  */
@@ -43,6 +45,8 @@ const DEFAULT_LOOKBACK_DAYS = 90;
 interface StoredSession {
   sessionId: string;
   accountUids: string[];
+  /** Verbundene Bank — für spätere Zahlungsauslösung (PIS) nötig. */
+  aspsp?: { name: string; country: string };
 }
 
 interface PendingConsent {
@@ -172,8 +176,11 @@ async function handleCallback(url: URL, env: Env): Promise<Response> {
   }
 
   try {
-    const { sessionId, accountUids } = await client(env).createSession(code);
+    const { sessionId, accountUids, aspsp } = await client(env).createSession(code);
     const stored: StoredSession = { sessionId, accountUids };
+    if (aspsp?.name && aspsp.country) {
+      stored.aspsp = { name: aspsp.name, country: aspsp.country };
+    }
     await env.SESSIONS.put(KV_SESSION, JSON.stringify(stored));
   } catch {
     return redirectWithFlag(redirectTarget, 'error');
@@ -225,6 +232,77 @@ async function handleTransactions(url: URL, env: Env): Promise<Response> {
   const dateFrom = url.searchParams.get('dateFrom') || isoDateDaysAgo(DEFAULT_LOOKBACK_DAYS);
   const data = await client(env).getAccountTransactions(accountId, dateFrom);
   return json(normalizeTransactions(data), env);
+}
+
+// ---------------------------------------------------------------------------
+// Payment Initiation (PIS) — SEPA-Überweisung
+//
+// Sicherheit: keine Zahlung wird ohne SCA des Nutzers ausgeführt; das Backend
+// erhält nur den (lizenzierten) Auslöse-Auftrag und gibt die Bank-URL zurück.
+// Sandbox-first: erst nach erfolgreichem Sandbox-Test produktiv schalten.
+// ---------------------------------------------------------------------------
+
+interface PaymentBody {
+  payment?: {
+    creditorName?: unknown;
+    creditorIban?: unknown;
+    amount?: unknown;
+    currency?: unknown;
+    remittance?: unknown;
+  };
+  redirectUrl?: unknown;
+}
+
+async function handlePaymentInitiate(request: Request, env: Env): Promise<Response> {
+  let body: PaymentBody;
+  try {
+    body = await request.json();
+  } catch {
+    return errorJson('Invalid JSON', env, 400);
+  }
+
+  const p = body.payment;
+  const redirectUrl = body.redirectUrl;
+  if (
+    !p ||
+    typeof p.creditorName !== 'string' ||
+    typeof p.creditorIban !== 'string' ||
+    typeof p.amount !== 'number' ||
+    typeof redirectUrl !== 'string'
+  ) {
+    return errorJson('Missing or invalid payment fields', env, 400);
+  }
+  if (!Number.isInteger(p.amount) || p.amount <= 0) {
+    return errorJson('Amount must be a positive integer (cents)', env, 400);
+  }
+
+  const session = await loadSession(env);
+  if (!session) return errorJson('No bank session. Connect a bank first.', env, 409);
+  if (!session.aspsp) {
+    return errorJson('Connected bank unknown — reconnect to enable payments.', env, 409);
+  }
+
+  const amountStr = (p.amount / 100).toFixed(2); // Cent -> "25.00"
+  const state = crypto.randomUUID();
+  const resp = await client(env).initiatePayment({
+    aspsp: session.aspsp,
+    state,
+    redirectUrl,
+    creditorName: p.creditorName,
+    creditorIban: p.creditorIban,
+    amount: amountStr,
+    currency: typeof p.currency === 'string' ? p.currency : 'EUR',
+    remittance: typeof p.remittance === 'string' ? p.remittance : '',
+  });
+
+  return json({ authUrl: resp.url ?? '', paymentId: resp.payment_id ?? '' }, env);
+}
+
+async function handlePaymentStatus(url: URL, env: Env): Promise<Response> {
+  const paymentId = url.searchParams.get('paymentId');
+  if (!paymentId) return errorJson('Missing paymentId', env, 400);
+  const resp = await client(env).getPaymentStatus(paymentId);
+  return json({ status: resp.payment_status ?? 'unknown' }, env);
 }
 
 // ---------------------------------------------------------------------------
@@ -346,6 +424,12 @@ export default {
       }
       if (url.pathname === '/api/transactions' && request.method === 'GET') {
         return await handleTransactions(url, env);
+      }
+      if (url.pathname === '/api/payments/initiate' && request.method === 'POST') {
+        return await handlePaymentInitiate(request, env);
+      }
+      if (url.pathname === '/api/payments/status' && request.method === 'GET') {
+        return await handlePaymentStatus(url, env);
       }
       if (url.pathname === '/api/categorize' && request.method === 'POST') {
         return await handleCategorize(request, env);

@@ -5,6 +5,10 @@ import {
   expectedRemaining,
   disposableThisMonth,
   reichtEs,
+  remainingDaysInMonth,
+  dailyDisposable,
+  averageMonthlyNet,
+  projectSavings,
 } from './forecast'
 import type { Transaction, RecurringRule } from '../types/budget'
 
@@ -168,5 +172,90 @@ describe('reichtEs', () => {
     expect(r.ok).toBe(false)
     // diff = 50000 − 86000 = -36000
     expect(r.diff).toBe(-36000)
+  })
+})
+
+describe('remainingDaysInMonth', () => {
+  it('zählt heute mit (15. eines 30-Tage-Monats -> 16)', () => {
+    expect(remainingDaysInMonth(new Date('2025-04-15T12:00:00Z'))).toBe(16)
+  })
+
+  it('gibt 1 am letzten Tag des Monats', () => {
+    expect(remainingDaysInMonth(new Date('2025-04-30T12:00:00Z'))).toBe(1)
+  })
+
+  it('berücksichtigt unterschiedliche Monatslängen (Januar -> 31)', () => {
+    expect(remainingDaysInMonth(new Date('2025-01-01T12:00:00Z'))).toBe(31)
+  })
+
+  it('berücksichtigt Februar (28 Tage 2025)', () => {
+    expect(remainingDaysInMonth(new Date('2025-02-20T12:00:00Z'))).toBe(9)
+  })
+})
+
+describe('dailyDisposable', () => {
+  it('verteilt das Verfügbare gleichmäßig auf die Resttage', () => {
+    // balance 100000, keine Rest-Ausgaben, am 21. April (30 Tage) -> 10 Resttage.
+    const result = dailyDisposable({
+      balance: 100000,
+      recurring: [],
+      txs: [],
+      monthKey: '2025-04',
+      today: new Date('2025-04-21T12:00:00Z'),
+    })
+    expect(result).toBe(10000) // 100000 / 10
+  })
+
+  it('rundet auf ganze Cent', () => {
+    // 10000 / 3 Resttage (29. April) = 3333.33 -> 3333
+    const result = dailyDisposable({
+      balance: 10000,
+      recurring: [],
+      txs: [],
+      monthKey: '2025-04',
+      today: new Date('2025-04-28T12:00:00Z'),
+    })
+    expect(result).toBe(3333)
+  })
+
+  it('gibt ein negatives Tagesbudget bei negativem Verfügbar', () => {
+    const result = dailyDisposable({
+      balance: -3000,
+      recurring: [],
+      txs: [],
+      monthKey: '2025-04',
+      today: new Date('2025-04-29T12:00:00Z'),
+    })
+    // -3000 / 2 Resttage = -1500
+    expect(result).toBe(-1500)
+  })
+})
+
+describe('averageMonthlyNet', () => {
+  it('mittelt das Monats-Netto über den Verlauf', () => {
+    expect(averageMonthlyNet([{ net: 20000 }, { net: 10000 }, { net: 0 }])).toBe(10000)
+  })
+
+  it('rundet auf ganze Cent', () => {
+    expect(averageMonthlyNet([{ net: 10000 }, { net: 10001 }])).toBe(10001) // 10000.5 -> 10001
+  })
+
+  it('leerer Verlauf ergibt 0', () => {
+    expect(averageMonthlyNet([])).toBe(0)
+  })
+})
+
+describe('projectSavings', () => {
+  it('projiziert die Gesamtersparnis bei gleichbleibendem Netto', () => {
+    expect(projectSavings(15000, 6)).toBe(90000)
+  })
+
+  it('kann negativ sein (mehr Ausgaben als Einnahmen)', () => {
+    expect(projectSavings(-5000, 3)).toBe(-15000)
+  })
+
+  it('0 oder negative Monate ergeben 0', () => {
+    expect(projectSavings(15000, 0)).toBe(0)
+    expect(projectSavings(15000, -2)).toBe(0)
   })
 })

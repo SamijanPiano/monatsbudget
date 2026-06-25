@@ -71,7 +71,17 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-5) var(--space-3);
+  padding: var(--space-6) var(--space-3);
+}
+.empty__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  color: var(--gold);
+  background: var(--gold-dim);
+  margin-bottom: var(--space-1);
 }
 .empty__title {
   font-size: var(--text-xl);
@@ -79,9 +89,10 @@
 }
 .empty__text {
   color: var(--text-muted);
-  max-width: 42ch;
+  max-width: 40ch;
   margin: 0 0 var(--space-2);
-  line-height: 1.5;
+  line-height: 1.6;
+  font-size: var(--text-sm);
 }
 
 /* Kontostand-Editor */
@@ -252,14 +263,15 @@
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
-  color: var(--text);
+  color: var(--text-muted);
   font-size: var(--text-xs);
   padding: var(--space-1) var(--space-2);
   max-width: 9rem;
 }
 .tx-cat--empty {
   color: var(--gold);
-  border-color: var(--border-strong);
+  border-color: rgba(79, 70, 229, 0.3);
+  background: var(--gold-dim);
 }
 
 /* Bank-Sync */
@@ -334,6 +346,9 @@
 }
 .budget-row__fill--over {
   background: var(--negative);
+}
+.budget-row__fill--warn {
+  background: var(--warn);
 }
 
 @media (max-width: 480px) {

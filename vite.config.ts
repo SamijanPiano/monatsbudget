@@ -10,6 +10,10 @@ const base = process.env.VITE_BASE ?? '/'
 // https://vite.dev/config/
 export default defineConfig({
   base,
+  server: {
+    host: true,
+    port: 5173,
+  },
   plugins: [
     react(),
     VitePWA({
@@ -21,8 +25,8 @@ export default defineConfig({
         description: 'Monatliche Budgetkalkulation — Konto & Bar',
         lang: 'de',
         dir: 'ltr',
-        theme_color: '#0c0a09',
-        background_color: '#0c0a09',
+        theme_color: '#4F46E5',
+        background_color: '#F8F9FB',
         display: 'standalone',
         orientation: 'portrait',
         icons: [

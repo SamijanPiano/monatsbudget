@@ -211,9 +211,12 @@ export class EnableBankingClient {
 
   /**
    * POST /sessions — exchange the authorization `code` for a session.
-   * Normalizes the accounts array to a plain list of uid strings.
+   * Normalizes the accounts array to a plain list of uid strings and surfaces
+   * the ASPSP (bank) so later payment initiation knows the debtor bank.
    */
-  async createSession(code: string): Promise<{ sessionId: string; accountUids: string[] }> {
+  async createSession(
+    code: string
+  ): Promise<{ sessionId: string; accountUids: string[]; aspsp?: EbAspsp }> {
     const data = await this.request<EbAuthorizeSessionResponse>('POST', '/sessions', { code });
     const accountUids: string[] = [];
     for (const acc of data.accounts ?? []) {
@@ -223,7 +226,7 @@ export class EnableBankingClient {
         accountUids.push(acc.uid);
       }
     }
-    return { sessionId: data.session_id, accountUids };
+    return { sessionId: data.session_id, accountUids, aspsp: data.aspsp };
   }
 
   /** GET /accounts/{uid}/details */
@@ -244,4 +247,63 @@ export class EnableBankingClient {
       `/accounts/${encodeURIComponent(uid)}/transactions?${q.toString()}`
     );
   }
+
+  // -------------------------------------------------------------------------
+  // Payment Initiation (PIS) — SEPA-Überweisung.
+  //
+  // WICHTIG: Vor dem Produktiv-Einsatz im Enable-Banking-Sandbox testen. Die
+  // App-Konfiguration muss den PIS-Scope haben und die redirect_url muss
+  // registriert sein. Schema gemäß Enable Banking Payments API
+  // (https://enablebanking.com/docs/api/reference/#operation/createPayment).
+  // -------------------------------------------------------------------------
+
+  /**
+   * POST /payments — eine SEPA-Überweisung anstoßen. Liefert die Bank-URL für
+   * die starke Kundenauthentifizierung (SCA) sowie die payment_id zurück.
+   */
+  async initiatePayment(args: {
+    aspsp: EbAspsp;
+    state: string;
+    redirectUrl: string;
+    creditorName: string;
+    creditorIban: string;
+    /** Betrag als String mit Punkt-Dezimaltrenner, z. B. "25.00". */
+    amount: string;
+    currency: string;
+    remittance: string;
+  }): Promise<EbInitiatePaymentResponse> {
+    return this.request<EbInitiatePaymentResponse>('POST', '/payments', {
+      payment_request: {
+        credit_transfer_transaction: [
+          {
+            instructed_amount: { currency: args.currency, amount: args.amount },
+            creditor: { name: args.creditorName },
+            creditor_account: { iban: args.creditorIban },
+            remittance_information: [args.remittance].filter(Boolean),
+          },
+        ],
+      },
+      aspsp: { name: args.aspsp.name, country: args.aspsp.country },
+      state: args.state,
+      redirect_url: args.redirectUrl,
+      psu_type: 'personal',
+    });
+  }
+
+  /** GET /payments/{paymentId} — Status einer angestoßenen Zahlung. */
+  async getPaymentStatus(paymentId: string): Promise<EbPaymentStatusResponse> {
+    return this.request<EbPaymentStatusResponse>(
+      'GET',
+      `/payments/${encodeURIComponent(paymentId)}`
+    );
+  }
+}
+
+interface EbInitiatePaymentResponse {
+  url?: string;
+  payment_id?: string;
+}
+
+interface EbPaymentStatusResponse {
+  payment_status?: string;
 }

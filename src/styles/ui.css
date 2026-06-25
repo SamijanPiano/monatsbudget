@@ -1,7 +1,7 @@
 /* Wiederverwendbare UI-Bausteine */
 
 .card {
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
@@ -68,21 +68,22 @@
   font-size: var(--text-xs);
 }
 .btn--primary {
-  color: #1a1408;
-  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  color: #ffffff;
+  background: var(--gold);
   box-shadow: var(--glow-gold);
 }
 .btn--primary:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.08);
 }
 .btn--outline {
   color: var(--text);
   border: 1px solid var(--border-strong);
-  background: var(--surface-2);
+  background: var(--surface);
 }
 .btn--outline:hover {
-  background: var(--surface-hover);
+  background: var(--surface-2);
   border-color: var(--gold);
+  color: var(--gold);
 }
 .btn--ghost {
   color: var(--text-muted);
@@ -98,7 +99,7 @@
   background: var(--negative-dim);
 }
 .btn--danger:hover {
-  background: rgba(255, 133, 133, 0.22);
+  background: rgba(220, 38, 38, 0.16);
 }
 
 /* Geld-Eingabefeld */
@@ -111,8 +112,8 @@
   width: 100%;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
   border-radius: 12px;
   padding: 0.5rem 1.5rem 0.5rem 0.7rem;
   transition:
@@ -132,7 +133,7 @@
 }
 .num-input input:focus {
   outline: none;
-  background: var(--surface-2);
+  background: var(--surface);
   border-color: var(--gold);
   box-shadow: 0 0 0 3px var(--gold-dim);
 }
@@ -339,10 +340,11 @@
   gap: 0.45rem;
   margin-top: var(--space-3);
   font-size: var(--text-sm);
+  font-weight: 550;
   color: var(--gold);
-  padding: 0.45rem 0.7rem;
+  padding: 0.45rem 0.9rem;
   border-radius: var(--radius-full);
-  border: 1px dashed var(--border-strong);
+  border: 1.5px dashed rgba(79, 70, 229, 0.3);
   transition:
     background var(--dur-fast) var(--ease),
     border-color var(--dur-fast) var(--ease);

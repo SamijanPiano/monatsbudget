@@ -2,7 +2,7 @@ import { useBudgetStore } from '../../store/budgetStore'
 import { Card } from '../ui/Card'
 import { formatCents } from '../../lib/format'
 import { currentMonthId } from '../../lib/seed'
-import { disposableThisMonth, reichtEs } from '../../lib/forecast'
+import { disposableThisMonth, reichtEs, dailyDisposable, remainingDaysInMonth } from '../../lib/forecast'
 
 /**
  * „Verfügbar diesen Monat" — die zentrale Zahl, automatisch aus Kontostand,
@@ -33,11 +33,24 @@ export function DisposableHero() {
     txs: transactions,
     monthKey: key,
   })
+  const perDay = dailyDisposable({
+    balance: totalBalance,
+    recurring: recurringRules,
+    txs: transactions,
+    monthKey: key,
+  })
+  const daysLeft = remainingDaysInMonth()
 
   return (
     <Card className={`hero ${reicht.ok ? 'hero--ok' : 'hero--warn'}`}>
       <span className="hero__label">Verfügbar diesen Monat</span>
       <strong className="hero__value tnum">{formatCents(disposable)}</strong>
+      {balance !== null && disposable > 0 && (
+        <span className="hero__daily tnum">
+          ≈ {formatCents(perDay)} pro Tag · noch {daysLeft}{' '}
+          {daysLeft === 1 ? 'Tag' : 'Tage'}
+        </span>
+      )}
       {balance === null ? (
         <p className="hero__hint">
           Trage in „Buchungen" deinen aktuellen Kontostand ein, damit die Berechnung stimmt.

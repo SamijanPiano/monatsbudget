@@ -121,14 +121,65 @@ describe('migrateBudgetState v2 -> v3 (Transaktions-Schicht)', () => {
     expect(out.transactions).toEqual([])
   })
 
-  test('bereits v3 bleibt unverändert (idempotent)', () => {
-    const v3 = {
-      ...v2Base({}),
-      transactions: [],
-      categories: [],
-      accounts: [],
-      recurringRules: [],
+  test('v1 -> v3 ergänzt auch die Vertrags-Schicht (v4)', () => {
+    const v1 = { months: { '2026-06': emptyMonth('2026-06') }, activeMonthId: '2026-06', settings: { currency: '€', locale: 'de-DE', savingsGoal: 0 } }
+    const out = migrateBudgetState(v1, 1)
+    expect(out.contracts).toEqual([])
+  })
+})
+
+const v3Base = () => ({
+  ...v2Base({ '2026-06': emptyMonth('2026-06') }),
+  transactions: [],
+  categories: [],
+  accounts: [
+    { id: 'a-check', name: 'Konto', type: 'checking' as const, balance: null },
+    { id: 'a-cash', name: 'Bargeld', type: 'cash' as const, balance: null },
+  ],
+  recurringRules: [],
+})
+
+describe('migrateBudgetState v3 -> v4 (Vertrags-Schicht)', () => {
+  test('ergänzt leere contracts-Liste', () => {
+    const out = migrateBudgetState(v3Base(), 3)
+    expect(out.contracts).toEqual([])
+  })
+
+  test('leitet Account-Felder defensiv ab (manual/isLiability)', () => {
+    const out = migrateBudgetState(v3Base(), 3)
+    const check = out.accounts.find((a) => a.id === 'a-check')
+    const cash = out.accounts.find((a) => a.id === 'a-cash')
+    // Giro = gesynct → nicht manuell, keine Schuld.
+    expect(check?.manual).toBe(false)
+    expect(check?.isLiability).toBe(false)
+    // Bargeld = manuell, keine Schuld.
+    expect(cash?.manual).toBe(true)
+    expect(cash?.isLiability).toBe(false)
+  })
+
+  test('Kreditkarte wird als Schuld markiert', () => {
+    const state = {
+      ...v3Base(),
+      accounts: [{ id: 'cc', name: 'Visa', type: 'credit' as const, balance: -5000 }],
     }
-    expect(migrateBudgetState(v3, 3)).toBe(v3)
+    const out = migrateBudgetState(state, 3)
+    const cc = out.accounts.find((a) => a.id === 'cc')
+    expect(cc?.isLiability).toBe(true)
+    expect(cc?.manual).toBe(true)
+  })
+
+  test('respektiert bereits gesetzte Account-Felder (kein Überschreiben)', () => {
+    const state = {
+      ...v3Base(),
+      accounts: [{ id: 'x', name: 'Sparkonto', type: 'checking' as const, balance: 100, manual: true, isLiability: false }],
+    }
+    const out = migrateBudgetState(state, 3)
+    const x = out.accounts.find((a) => a.id === 'x')
+    expect(x?.manual).toBe(true)
+  })
+
+  test('bereits v4 bleibt unverändert (idempotent)', () => {
+    const v4 = { ...v3Base(), contracts: [] }
+    expect(migrateBudgetState(v4, 4)).toBe(v4)
   })
 })

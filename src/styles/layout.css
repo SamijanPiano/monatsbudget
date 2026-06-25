@@ -10,9 +10,9 @@
   top: 0;
   z-index: 20;
   padding-top: env(safe-area-inset-top);
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  backdrop-filter: saturate(150%) blur(16px);
-  -webkit-backdrop-filter: saturate(150%) blur(16px);
+  background: rgba(248, 249, 251, 0.92);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
   border-bottom: 1px solid var(--border);
 }
 .app-header__inner {
@@ -39,7 +39,7 @@
   width: 34px;
   height: 34px;
   border-radius: 11px;
-  color: #1a1408;
+  color: #ffffff;
   font-weight: 700;
   background: linear-gradient(160deg, var(--gold-soft), var(--gold));
   box-shadow: var(--glow-gold);
@@ -137,7 +137,6 @@
   width: 100%;
   margin-top: var(--space-2);
   padding: 0.6rem 0.7rem;
-  border-radius: 10px;
   font-size: var(--text-sm);
   font-weight: 550;
   color: var(--gold);
@@ -184,12 +183,12 @@
   padding: 6px;
   width: 100%;
   max-width: 480px;
-  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-pop);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10), 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 .bottom-nav__tab {
   display: flex;
@@ -212,6 +211,7 @@
 }
 .bottom-nav__tab:hover {
   color: var(--text-muted);
+  background: var(--surface-2);
 }
 .bottom-nav__tab.is-active {
   color: var(--gold);

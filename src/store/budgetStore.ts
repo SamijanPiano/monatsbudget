@@ -3,7 +3,16 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { BudgetState, Category, Goal, LineItem, Month, Settings } from '../types/budget'
+import type {
+  Account,
+  BudgetState,
+  Category,
+  Contract,
+  Goal,
+  LineItem,
+  Month,
+  Settings,
+} from '../types/budget'
 import { createId } from '../lib/id'
 import { DEFAULT_SETTINGS, copyMonth, createBlankMonth, currentMonthId } from '../lib/seed'
 import { migrateBudgetState } from './migrate'
@@ -11,6 +20,7 @@ import type { OnboardingResult } from '../lib/onboarding'
 import type { ParsedTransaction } from '../lib/import/types'
 import { buildImportedTransactions } from '../lib/ingest'
 import { detectRecurring } from '../lib/recurring'
+import { contractsFromRecurring } from '../lib/contracts'
 import { learnRule, categorizeAll } from '../lib/categorize'
 import { defaultCategories } from '../lib/categorizeSeed'
 import { aiCategorize as apiAiCategorize } from '../lib/bankApi'
@@ -45,7 +55,9 @@ interface BudgetActions {
   removeGoal: (id: string) => void
   replaceState: (
     next: Pick<BudgetState, 'months' | 'activeMonthId' | 'settings'> &
-      Partial<Pick<BudgetState, 'transactions' | 'categories' | 'accounts' | 'recurringRules'>>,
+      Partial<
+        Pick<BudgetState, 'transactions' | 'categories' | 'accounts' | 'recurringRules' | 'contracts'>
+      >,
   ) => void
   // Transaktions-Schicht (v3)
   importParsed: (parsed: ParsedTransaction[], accountId?: string) => number
@@ -55,6 +67,16 @@ interface BudgetActions {
   removeCategory: (id: string) => void
   setAccountBalance: (accountId: string, balance: number | null) => void
   aiCategorize: () => Promise<void>
+  // Konten (v4)
+  addAccount: (account: Omit<Account, 'id'>) => void
+  updateAccount: (id: string, patch: Partial<Account>) => void
+  removeAccount: (id: string) => void
+  // Verträge (v4)
+  addContract: (contract: Omit<Contract, 'id'>) => void
+  updateContract: (id: string, patch: Partial<Contract>) => void
+  removeContract: (id: string) => void
+  markContractCanceled: (id: string) => void
+  syncContractsFromRecurring: () => void
 }
 
 export type BudgetStore = BudgetState & BudgetActions
@@ -68,8 +90,11 @@ function initialState(): BudgetState {
     profile: { onboarded: false, cashEnabled: false, goals: [] },
     transactions: [],
     categories: defaultCategories(),
-    accounts: [{ id: createId(), name: 'Konto', type: 'checking', balance: null }],
+    accounts: [
+      { id: createId(), name: 'Konto', type: 'checking', balance: null, manual: false, isLiability: false },
+    ],
     recurringRules: [],
+    contracts: [],
   }
 }
 
@@ -252,6 +277,7 @@ export const useBudgetStore = create<BudgetStore>()(
           categories: next.categories ?? state.categories,
           accounts: next.accounts ?? state.accounts,
           recurringRules: next.recurringRules ?? state.recurringRules,
+          contracts: next.contracts ?? state.contracts,
         })),
 
       importParsed: (parsed, accountId) => {
@@ -344,10 +370,48 @@ export const useBudgetStore = create<BudgetStore>()(
           // Best-effort; silently ignore failures
         }
       },
+
+      addAccount: (account) =>
+        set((state) => ({ accounts: [...state.accounts, { ...account, id: createId() }] })),
+
+      updateAccount: (id, patch) =>
+        set((state) => ({
+          accounts: state.accounts.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+        })),
+
+      removeAccount: (id) =>
+        set((state) => ({
+          accounts: state.accounts.filter((a) => a.id !== id),
+          // Buchungen verwaisen nicht still: Verweis bleibt, wird in der UI als
+          // „unbekanntes Konto" behandelt. Keine Transaktion wird gelöscht.
+        })),
+
+      addContract: (contract) =>
+        set((state) => ({ contracts: [...state.contracts, { ...contract, id: createId() }] })),
+
+      updateContract: (id, patch) =>
+        set((state) => ({
+          contracts: state.contracts.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        })),
+
+      removeContract: (id) =>
+        set((state) => ({ contracts: state.contracts.filter((c) => c.id !== id) })),
+
+      markContractCanceled: (id) =>
+        set((state) => ({
+          contracts: state.contracts.map((c) =>
+            c.id === id ? { ...c, status: 'canceled' } : c,
+          ),
+        })),
+
+      syncContractsFromRecurring: () =>
+        set((state) => ({
+          contracts: contractsFromRecurring(state.recurringRules, state.contracts),
+        })),
     }),
     {
       name: STORAGE_KEY,
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => migrateBudgetState(persisted, version),
     },
   ),
