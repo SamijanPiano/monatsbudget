@@ -13,6 +13,8 @@ import { buildImportedTransactions } from '../lib/ingest'
 import { detectRecurring } from '../lib/recurring'
 import { learnRule, categorizeAll } from '../lib/categorize'
 import { defaultCategories } from '../lib/categorizeSeed'
+import { aiCategorize as apiAiCategorize } from '../lib/bankApi'
+import { getSyncConfig } from '../lib/syncConfig'
 
 export type Section = 'income' | 'fixed' | 'variable'
 
@@ -52,6 +54,7 @@ interface BudgetActions {
   updateCategory: (id: string, patch: Partial<Category>) => void
   removeCategory: (id: string) => void
   setAccountBalance: (accountId: string, balance: number | null) => void
+  aiCategorize: () => Promise<void>
 }
 
 export type BudgetStore = BudgetState & BudgetActions
@@ -98,7 +101,7 @@ function applyQuickStart(month: Month, result: OnboardingResult): Month {
 
 export const useBudgetStore = create<BudgetStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState(),
 
       setActiveMonth: (id) =>
@@ -310,6 +313,37 @@ export const useBudgetStore = create<BudgetStore>()(
         set((state) => ({
           accounts: state.accounts.map((a) => (a.id === accountId ? { ...a, balance } : a)),
         })),
+
+      aiCategorize: async () => {
+        const state = get()
+        const uncategorized = state.transactions.filter((t) => t.categoryId === null)
+        if (uncategorized.length === 0) return
+        const cfg = getSyncConfig()
+        if (!cfg) return
+        try {
+          const payload = uncategorized.map((t) => ({
+            id: t.id,
+            counterparty: t.counterparty,
+            purpose: t.purpose,
+            amount: t.amount,
+          }))
+          const catPayload = state.categories.map((c) => ({ id: c.id, label: c.label }))
+          const assignments = await apiAiCategorize(cfg, payload, catPayload)
+          const map = new Map(
+            assignments.filter((a) => a.categoryId !== null).map((a) => [a.id, a.categoryId!]),
+          )
+          if (map.size === 0) return
+          set((s) => ({
+            transactions: s.transactions.map((t) => {
+              const newCat = map.get(t.id)
+              if (newCat && t.categoryId === null) return { ...t, categoryId: newCat }
+              return t
+            }),
+          }))
+        } catch {
+          // Best-effort; silently ignore failures
+        }
+      },
     }),
     {
       name: STORAGE_KEY,

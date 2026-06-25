@@ -58,3 +58,30 @@ export function fetchTransactions(
     `/api/transactions?accountId=${encodeURIComponent(accountId)}&dateFrom=${dateFrom}`,
   )
 }
+
+export interface CategoryAssignment {
+  id: string
+  categoryId: string | null
+}
+
+export function aiCategorize(
+  config: SyncConfig,
+  transactions: Array<{ id: string; counterparty: string; purpose?: string; amount: number }>,
+  categories: Array<{ id: string; label: string }>,
+): Promise<CategoryAssignment[]> {
+  return call<CategoryAssignment[]>(config, '/api/categorize', {
+    method: 'POST',
+    body: JSON.stringify({ transactions, categories }),
+  })
+}
+
+export function aiChat(
+  config: SyncConfig,
+  message: string,
+  context: unknown,
+): Promise<{ reply: string }> {
+  return call<{ reply: string }>(config, '/api/chat', {
+    method: 'POST',
+    body: JSON.stringify({ message, context }),
+  })
+}

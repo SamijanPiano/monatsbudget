@@ -1,0 +1,134 @@
+/* KI-Assistent */
+
+.ai-welcome {
+  margin-bottom: var(--space-3);
+}
+.ai-welcome__text {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-2);
+}
+.ai-welcome__hint {
+  font-size: var(--text-xs);
+  color: var(--gold);
+  margin: 0;
+}
+
+.ai-quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.ai-chip {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.ai-chip:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.ai-messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  max-height: 50vh;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+.ai-msg {
+  display: flex;
+  max-width: 85%;
+}
+.ai-msg--user {
+  align-self: flex-end;
+}
+.ai-msg--ai {
+  align-self: flex-start;
+}
+.ai-msg--error {
+  align-self: flex-start;
+}
+.ai-msg__text {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.ai-msg--user .ai-msg__text {
+  background: var(--accent);
+  color: white;
+}
+.ai-msg--error .ai-msg__text {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: var(--red);
+}
+.ai-msg__thinking {
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+  font-style: italic;
+  padding: var(--space-2) 0;
+}
+
+.ai-input-row {
+  display: flex;
+  gap: var(--space-2);
+}
+.ai-input {
+  flex: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text);
+  outline: none;
+}
+.ai-input:focus {
+  border-color: var(--accent);
+}
+
+/* KI-Kategorisierungs-Banner */
+.ai-categorize-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.ai-categorize-banner__count {
+  font-weight: 600;
+  color: var(--gold);
+}
+.ai-categorize-banner__label {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.btn--ai {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn--ai:hover {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.btn--ai:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

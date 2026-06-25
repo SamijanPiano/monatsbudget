@@ -257,3 +257,14 @@ export function IconSparkles({ size = 22, className }: IconProps) {
     </svg>
   )
 }
+
+export function IconAI({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className} aria-hidden="true">
+      <path d="M12 3a1 1 0 0 1 1 1v1h3a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3V4a1 1 0 0 1 1-1z" />
+      <circle cx="9.5" cy="9.5" r="1" />
+      <circle cx="14.5" cy="9.5" r="1" />
+      <path d="M9 13h6M10 17v2M14 17v2" />
+    </svg>
+  )
+}

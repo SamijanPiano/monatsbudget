@@ -7,10 +7,10 @@ import { createId } from './id'
 import type { RecurringRule, Transaction } from '../types/budget'
 
 // ─── Schwellen & Toleranzen ──────────────────────────────────────────────────
-// Eine Gruppe gilt als „monatlich wiederkehrend", wenn sie in mindestens so
-// vielen DISTINKTEN Monaten auftaucht. Drei Treffer geben genug Signal, ohne
-// auf Quartals-/Jahreszahlern zu früh anzuschlagen.
-const MIN_OCCURRENCES = 3
+// Eine Gruppe gilt als wiederkehrend, wenn sie in mindestens MIN_OCCURRENCES
+// DISTINKTEN Monaten auftaucht. Zwei Treffer reichen, damit Abos direkt nach
+// dem zweiten Monat erkannt werden.
+const MIN_OCCURRENCES = 2
 // Betrag gilt als „ungefähr stabil", wenn die Spanne (max−min) entweder
 // ≤ 10 % des typischen Betrags ODER ≤ 2 € (200 Cent) ist. Das fängt sowohl
 // kleine Abos (feste Cent) als auch schwankende Rechnungen (Strom) ab.

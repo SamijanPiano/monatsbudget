@@ -9,6 +9,7 @@ import { HistoryView } from './components/history/HistoryView'
 import { SettingsView } from './components/settings/SettingsView'
 import { SaldoApp } from './components/saldo/SaldoApp'
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard'
+import { AiChat } from './components/ai/AiChat'
 
 export default function App() {
   const [tab, setTab] = useState<TabId>('dashboard')
@@ -27,6 +28,7 @@ export default function App() {
         <div className="app-main__inner" key={tab}>
           {tab === 'dashboard' && <Dashboard />}
           {tab === 'buchungen' && <TransactionsView />}
+          {tab === 'ai' && <AiChat />}
           {tab === 'schulden' && <SaldoApp />}
           {tab === 'history' && <HistoryView />}
           {tab === 'settings' && <SettingsView />}

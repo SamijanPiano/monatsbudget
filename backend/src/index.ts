@@ -26,6 +26,7 @@ export interface Env {
   ENABLE_PRIVATE_KEY: string;
   APP_TOKEN: string;
   ALLOWED_ORIGIN: string;
+  ANTHROPIC_API_KEY: string;
 }
 
 // KV keys
@@ -227,6 +228,85 @@ async function handleTransactions(url: URL, env: Env): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
+// AI: Kategorisierung + Chat
+// ---------------------------------------------------------------------------
+
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+
+async function callClaude(env: Env, body: unknown): Promise<string> {
+  if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not configured');
+  const resp = await fetch(ANTHROPIC_URL, {
+    method: 'POST',
+    headers: {
+      'x-api-key': env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) throw new Error(`Anthropic ${resp.status}`);
+  const data = await resp.json() as { content: Array<{ type: string; text: string }> };
+  return data.content[0]?.text ?? '';
+}
+
+async function handleCategorize(request: Request, env: Env): Promise<Response> {
+  let body: { transactions?: unknown[]; categories?: unknown[] };
+  try { body = await request.json(); } catch { return errorJson('Invalid JSON', env, 400); }
+
+  const txs = body.transactions as Array<{ id: string; counterparty: string; purpose?: string; amount: number }>;
+  const cats = body.categories as Array<{ id: string; label: string }>;
+  if (!txs?.length || !cats?.length) return json([], env);
+
+  const catList = cats.map(c => `${c.id}: ${c.label}`).join('\n');
+  const txList = txs.map(t =>
+    `${t.id} | ${t.counterparty} | ${t.purpose ?? ''} | ${t.amount}`
+  ).join('\n');
+
+  const prompt = `Weise jeder Transaktion eine der Kategorien zu.
+
+Kategorien:
+${catList}
+
+Transaktionen (ID | Empfänger | Verwendungszweck | Cent-Betrag):
+${txList}
+
+Antworte NUR mit einem JSON-Array ohne Erklärung:
+[{"id":"tx-id","categoryId":"cat-id"}, ...]
+Wenn keine Kategorie passt, nutze "null" als categoryId.`;
+
+  try {
+    const text = await callClaude(env, {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) return json([], env);
+    return json(JSON.parse(match[0]), env);
+  } catch {
+    return errorJson('AI service unavailable', env, 502);
+  }
+}
+
+async function handleChat(request: Request, env: Env): Promise<Response> {
+  let body: { message?: string; context?: unknown };
+  try { body = await request.json(); } catch { return errorJson('Invalid JSON', env, 400); }
+  if (!body.message) return errorJson('Missing message', env, 400);
+
+  try {
+    const text = await callClaude(env, {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      system: 'Du bist ein persönlicher Finanzberater für eine Budget-App. Du hast Zugriff auf alle Kontodaten. Antworte präzise und hilfreich auf Deutsch. Beträge in den Daten sind Cent (integer); zeige sie als Euro (z.B. 1.234,56 €).',
+      messages: [{ role: 'user', content: `Finanzdaten:\n${JSON.stringify(body.context ?? {})}\n\nFrage: ${body.message}` }],
+    });
+    return json({ reply: text }, env);
+  } catch {
+    return errorJson('AI service unavailable', env, 502);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -266,6 +346,12 @@ export default {
       }
       if (url.pathname === '/api/transactions' && request.method === 'GET') {
         return await handleTransactions(url, env);
+      }
+      if (url.pathname === '/api/categorize' && request.method === 'POST') {
+        return await handleCategorize(request, env);
+      }
+      if (url.pathname === '/api/chat' && request.method === 'POST') {
+        return await handleChat(request, env);
       }
       return errorJson('Not found', env, 404);
     } catch (err) {

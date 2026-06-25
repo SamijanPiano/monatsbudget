@@ -1,13 +1,13 @@
 import type { ReactNode } from 'react'
 import {
+  IconAI,
   IconDashboard,
-  IconHistory,
   IconReceipt,
   IconSettings,
   IconUsers,
 } from '../ui/icons'
 
-export type TabId = 'dashboard' | 'buchungen' | 'schulden' | 'history' | 'settings'
+export type TabId = 'dashboard' | 'buchungen' | 'schulden' | 'history' | 'settings' | 'ai'
 
 export interface TabDef {
   id: TabId
@@ -18,8 +18,8 @@ export interface TabDef {
 export const TABS: TabDef[] = [
   { id: 'dashboard', label: 'Übersicht', icon: IconDashboard },
   { id: 'buchungen', label: 'Buchungen', icon: IconReceipt },
+  { id: 'ai', label: 'KI', icon: IconAI },
   { id: 'schulden', label: 'Schulden', icon: IconUsers },
-  { id: 'history', label: 'Verlauf', icon: IconHistory },
   { id: 'settings', label: 'Mehr', icon: IconSettings },
 ]
 
