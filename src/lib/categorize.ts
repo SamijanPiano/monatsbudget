@@ -85,6 +85,24 @@ export function categorizeAll(
   })
 }
 
+/**
+ * Sortiert ALLE Buchungen komplett neu: verwirft bestehende Zuordnungen (auch
+ * manuelle) und ordnet jede Buchung erneut nach den aktuellen Regeln zu. Ohne
+ * Regel-Treffer greift `fallbackId` (z. B. „Sonstiges"). Immutabel.
+ *
+ * Im Gegensatz zu `categorizeAll`, das nur null-Felder füllt, ist dies der
+ * „Alle neu kategorisieren"-Pfad: nützlich, nachdem sich das Kategorien-Set
+ * oder die Regeln geändert haben.
+ */
+export function recategorizeAll(
+  txs: Transaction[],
+  categories: Category[],
+  fallbackId: string | null = null,
+): Transaction[] {
+  const cleared = txs.map((tx) => ({ ...tx, categoryId: null }))
+  return categorizeAll(cleared, categories, fallbackId)
+}
+
 /** Vereinheitlicht einen Gegenpart-Namen für stabile equals-Regeln. */
 function normalizeCounterparty(counterparty: string): string {
   return counterparty.trim().toLowerCase()

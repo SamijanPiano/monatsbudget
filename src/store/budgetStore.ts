@@ -21,7 +21,12 @@ import type { ParsedTransaction } from '../lib/import/types'
 import { buildImportedTransactions } from '../lib/ingest'
 import { detectRecurring } from '../lib/recurring'
 import { contractsFromRecurring } from '../lib/contracts'
-import { learnRule, categorizeAll, fallbackCategoryId } from '../lib/categorize'
+import {
+  learnRule,
+  categorizeAll,
+  fallbackCategoryId,
+  recategorizeAll as resortTransactions,
+} from '../lib/categorize'
 import { defaultCategories } from '../lib/categorizeSeed'
 import { aiCategorize as apiAiCategorize } from '../lib/bankApi'
 import { getSyncConfig } from '../lib/syncConfig'
@@ -64,6 +69,12 @@ interface BudgetActions {
   setTransactionCategory: (txId: string, categoryId: string | null) => void
   /** Ordnet alle noch unkategorisierten Buchungen der „Sonstiges"-Kategorie zu. */
   backfillCategories: () => void
+  /**
+   * Sortiert ALLE Buchungen komplett neu: verwirft bestehende Zuordnungen (auch
+   * manuelle) und ordnet jede Buchung erneut nach den aktuellen Regeln zu;
+   * unklare landen in „Sonstiges".
+   */
+  recategorizeAll: () => void
   addCategory: (category: Category) => void
   updateCategory: (id: string, patch: Partial<Category>) => void
   removeCategory: (id: string) => void
@@ -334,6 +345,17 @@ export const useBudgetStore = create<BudgetStore>()(
           return { transactions }
         }),
 
+      recategorizeAll: () =>
+        set((state) => {
+          if (state.transactions.length === 0) return {}
+          const transactions = resortTransactions(
+            state.transactions,
+            state.categories,
+            fallbackCategoryId(state.categories),
+          )
+          return { transactions }
+        }),
+
       addCategory: (category) =>
         set((state) => ({ categories: [...state.categories, category] })),
 
@@ -427,7 +449,7 @@ export const useBudgetStore = create<BudgetStore>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 4,
+      version: 5,
       migrate: (persisted, version) => migrateBudgetState(persisted, version),
     },
   ),

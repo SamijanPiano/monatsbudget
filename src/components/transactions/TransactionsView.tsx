@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useBudgetStore, useCashEnabled } from '../../store/budgetStore'
 import type { Category, Transaction } from '../../types/budget'
 import { Card, SectionTitle } from '../ui/Card'
@@ -9,6 +9,7 @@ import { ImportButton } from './ImportButton'
 import { CategorySelect } from './CategorySelect'
 import { DisposableHero } from './DisposableHero'
 import { RecurringCard } from './RecurringCard'
+import { BankSyncSection } from '../sync/BankSyncSection'
 
 type GroupMode = 'category' | 'month'
 
@@ -69,8 +70,17 @@ export function TransactionsView() {
   const categories = useBudgetStore((s) => s.categories)
   const accounts = useBudgetStore((s) => s.accounts)
   const setAccountBalance = useBudgetStore((s) => s.setAccountBalance)
+  const recategorizeAll = useBudgetStore((s) => s.recategorizeAll)
   const cashEnabled = useCashEnabled()
   const [groupMode, setGroupMode] = useState<GroupMode>('category')
+
+  function handleRecategorize() {
+    const ok = window.confirm(
+      'Alle Buchungen neu sortieren? Dabei werden auch von dir manuell gesetzte ' +
+        'Kategorien überschrieben. Unklare Buchungen landen in „Sonstiges".',
+    )
+    if (ok) recategorizeAll()
+  }
 
   const checking = accounts.find((a) => a.type === 'checking') ?? accounts[0]
   const cashAccount = accounts.find((a) => a.type === 'cash')
@@ -90,6 +100,7 @@ export function TransactionsView() {
   if (transactions.length === 0) {
     return (
       <div className="view-stack">
+        <BankSyncSection />
         <Card>
           <div className="empty">
             <h2 className="empty__title">Noch keine Buchungen</h2>
@@ -107,6 +118,8 @@ export function TransactionsView() {
 
   return (
     <div className="view-stack">
+      <BankSyncSection />
+
       <DisposableHero />
 
       <Card>
@@ -158,6 +171,9 @@ export function TransactionsView() {
             Nach Monat
           </button>
         </div>
+        <button type="button" className="tx-recategorize" onClick={handleRecategorize}>
+          ↻ Alle neu kategorisieren
+        </button>
         <div className="tx-list">
           {groups.map((group) => (
             <div key={group.key} className="tx-group">
@@ -207,11 +223,16 @@ interface BalanceEditorProps {
 }
 
 function BalanceEditor({ value, onChange }: BalanceEditorProps) {
-  const [text, setText] = useState(value === null ? '' : (value / 100).toFixed(2))
+  const display = value === null ? '' : (value / 100).toFixed(2)
+  const [text, setText] = useState(display)
 
-  useEffect(() => {
-    setText(value === null ? '' : (value / 100).toFixed(2))
-  }, [value])
+  // Derive-state-from-props: re-sync the input when the `value` prop changes
+  // by tracking the previous prop instead of synchronizing inside an effect.
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
+    setText(display)
+  }
 
   function commit() {
     const normalized = text.replace(/\./g, '').replace(',', '.')

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import type { Month } from '../types/budget'
+import type { BudgetState, Category, Month } from '../types/budget'
 import { migrateBudgetState } from './migrate'
 
 const emptyMonth = (id: string): Month => ({
@@ -178,8 +178,82 @@ describe('migrateBudgetState v3 -> v4 (Vertrags-Schicht)', () => {
     expect(x?.manual).toBe(true)
   })
 
-  test('bereits v4 bleibt unverändert (idempotent)', () => {
-    const v4 = { ...v3Base(), contracts: [] }
-    expect(migrateBudgetState(v4, 4)).toBe(v4)
+  test('Account-Felder eines v4-Bestands bleiben bei v4 -> v5 erhalten', () => {
+    const v4 = {
+      ...v3Base(),
+      contracts: [],
+      accounts: [{ id: 'x', name: 'Konto', type: 'checking' as const, balance: 100, manual: false, isLiability: false }],
+    }
+    const out = migrateBudgetState(v4, 4)
+    expect(out.accounts.find((a) => a.id === 'x')?.manual).toBe(false)
+  })
+})
+
+const v4Base = (categories: Category[] = [], extra: Partial<BudgetState> = {}) => ({
+  ...v3Base(),
+  contracts: [],
+  categories,
+  ...extra,
+})
+
+const ruleless = (id: string, label: string, budget: number | null = null): Category => ({
+  id, label, kind: 'variable', budget, rules: [],
+})
+
+describe('migrateBudgetState v4 -> v5 (Ausgaben-Kategorien)', () => {
+  test('leerer Kategorien-Bestand bekommt das Standard-Set mit Regeln', () => {
+    const out = migrateBudgetState(v4Base([]), 4)
+    expect(out.categories.length).toBeGreaterThan(5)
+    // mindestens eine Kategorie hat jetzt Auto-Regeln
+    expect(out.categories.some((c) => c.rules.length > 0)).toBe(true)
+    expect(out.categories.some((c) => c.label === 'Einkauf')).toBe(true)
+    expect(out.categories.some((c) => c.label.toLowerCase() === 'sonstiges')).toBe(true)
+  })
+
+  test('regellose, budgetlose, unreferenzierte Alt-Kategorien werden entfernt', () => {
+    const out = migrateBudgetState(v4Base([ruleless('old', 'Netflix')]), 4)
+    expect(out.categories.some((c) => c.id === 'old')).toBe(false)
+  })
+
+  test('Kategorie mit Budget bleibt erhalten (kein Datenverlust)', () => {
+    const out = migrateBudgetState(v4Base([ruleless('keepme', 'iCloud', 1000)]), 4)
+    const kept = out.categories.find((c) => c.id === 'keepme')
+    expect(kept?.budget).toBe(1000)
+  })
+
+  test('von einer Buchung referenzierte Kategorie bleibt erhalten', () => {
+    const tx = {
+      id: 't', date: '2026-06-01', amount: -500, counterparty: 'X', purpose: '',
+      categoryId: 'used', accountId: 'a', source: 'import' as const, hash: 'h',
+    }
+    const out = migrateBudgetState(v4Base([ruleless('used', 'Spotify')], { transactions: [tx] }), 4)
+    expect(out.categories.some((c) => c.id === 'used')).toBe(true)
+  })
+
+  test('kuratierte Kategorie (mit Regel) bleibt erhalten und wird nicht dupliziert', () => {
+    const curated: Category = {
+      id: 'cur', label: 'Einkauf', kind: 'variable', budget: null,
+      rules: [{ field: 'counterparty', match: 'contains', value: 'biomarkt' }],
+    }
+    const out = migrateBudgetState(v4Base([curated]), 4)
+    const einkauf = out.categories.filter((c) => c.label.toLowerCase() === 'einkauf')
+    expect(einkauf).toHaveLength(1)
+    expect(einkauf[0].id).toBe('cur')
+  })
+
+  test('unkategorisierte Buchung bekommt per Regel eine Kategorie (REWE -> Einkauf)', () => {
+    const tx = {
+      id: 't', date: '2026-06-01', amount: -2000, counterparty: 'REWE Markt', purpose: '',
+      categoryId: null, accountId: 'a', source: 'import' as const, hash: 'h',
+    }
+    const out = migrateBudgetState(v4Base([], { transactions: [tx] }), 4)
+    const assigned = out.categories.find((c) => c.id === out.transactions[0].categoryId)
+    expect(assigned?.label).toBe('Einkauf')
+  })
+
+  test('bereits v5 bleibt unverändert (idempotent)', () => {
+    const v5 = { ...v4Base([]), categories: [ruleless('a', 'X', 100)] }
+    const out = migrateBudgetState(v5, 5)
+    expect(out).toBe(v5)
   })
 })

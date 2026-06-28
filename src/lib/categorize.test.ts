@@ -4,6 +4,7 @@ import {
   matchesRule,
   categorize,
   categorizeAll,
+  recategorizeAll,
   learnRule,
   fallbackCategoryId,
 } from './categorize'
@@ -133,6 +134,35 @@ describe('categorizeAll', () => {
     expect(result[0].categoryId).toBe('lm') // Regel-Treffer schlägt Fallback
     expect(result[1].categoryId).toBe('sonst') // kein Treffer → Fallback
     expect(result[2].categoryId).toBe('manuell') // bestehende Zuordnung bleibt
+  })
+})
+
+describe('recategorizeAll', () => {
+  const lebensmittel = cat({
+    id: 'lm',
+    rules: [rule({ match: 'contains', value: 'rewe' })],
+  })
+
+  test('überschreibt bestehende (auch manuelle) Zuordnungen anhand der Regeln', () => {
+    const txs = [
+      tx({ id: 'a', counterparty: 'REWE', categoryId: 'falsch' }),
+      tx({ id: 'b', counterparty: 'Unbekannt', categoryId: 'alt' }),
+    ]
+    const result = recategorizeAll(txs, [lebensmittel], 'sonst')
+    expect(result[0].categoryId).toBe('lm') // neu per Regel, alte „falsch" weg
+    expect(result[1].categoryId).toBe('sonst') // kein Treffer → Fallback
+  })
+  test('ohne fallbackId bleiben Buchungen ohne Treffer unzugeordnet', () => {
+    const txs = [tx({ id: 'a', counterparty: 'Unbekannt', categoryId: 'alt' })]
+    const result = recategorizeAll(txs, [lebensmittel])
+    expect(result[0].categoryId).toBeNull()
+  })
+  test('ist immutabel: Eingabe bleibt unverändert', () => {
+    const txs = [tx({ id: 'a', counterparty: 'REWE', categoryId: 'falsch' })]
+    const snapshot = JSON.stringify(txs)
+    const result = recategorizeAll(txs, [lebensmittel], 'sonst')
+    expect(JSON.stringify(txs)).toBe(snapshot)
+    expect(result).not.toBe(txs)
   })
 })
 

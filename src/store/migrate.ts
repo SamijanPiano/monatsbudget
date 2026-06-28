@@ -1,8 +1,9 @@
 // Migration des persistierten Budget-States. Als reine Funktion testbar.
 // Kette: v1 -> v2 (fügt `profile` hinzu) -> v3 (fügt die Transaktions-Schicht
 // hinzu: transactions/categories/accounts/recurringRules) -> v4 (fügt die
-// Vertrags-Schicht hinzu + ergänzt Account-Felder defensiv). Jeder Schritt ist
-// idempotent und verlustfrei — Bestandsdaten (Monate, Profil, Ziele) bleiben.
+// Vertrags-Schicht hinzu + ergänzt Account-Felder defensiv) -> v5 (führt das
+// regelbasierte Ausgaben-Kategorien-Set ein). Jeder Schritt ist idempotent und
+// verlustfrei — Bestandsdaten (Monate, Profil, Ziele) bleiben.
 
 import type {
   Account,
@@ -15,6 +16,8 @@ import type {
   UserProfile,
 } from '../types/budget'
 import { createId } from '../lib/id'
+import { defaultCategories } from '../lib/categorizeSeed'
+import { categorizeAll, fallbackCategoryId } from '../lib/categorize'
 
 function monthHasValues(month: Month): boolean {
   const lines = [...month.income, ...month.fixed, ...month.variable]
@@ -137,11 +140,47 @@ function addContractLayer(state: BudgetState): BudgetState {
   return { ...state, accounts, contracts: state.contracts ?? [] }
 }
 
-/** Hebt persistierten State auf die aktuelle Version (4). Idempotent. */
+/**
+ * v4 -> v5: führt das regelbasierte Ausgaben-Kategorien-Set ein.
+ *
+ * Die v2->v3-Ableitung erzeugte aus den manuellen Monats-Posten regellose
+ * Kategorien (z. B. „Netflix", „iCloud", „Gehalt (Überweisung)") — die konnten
+ * nie automatisch befüllt werden. Hier ersetzen wir diesen Auto-Müll durch das
+ * Standard-Set mit echten Regeln. Verlustfrei: vom Nutzer kuratierte (mit
+ * Regeln), mit gesetztem Budget oder noch referenzierte Kategorien bleiben
+ * erhalten; nur regellose, budgetlose und nirgends genutzte Kategorien werden
+ * entfernt. Bereits unkategorisierte Buchungen bekommen per Regel eine
+ * Kategorie (Fallback „Sonstiges"); manuelle Zuordnungen bleiben unangetastet.
+ */
+function addSpendingCategories(state: BudgetState): BudgetState {
+  const referenced = new Set<string>()
+  for (const t of state.transactions ?? []) if (t.categoryId) referenced.add(t.categoryId)
+  for (const r of state.recurringRules ?? []) if (r.categoryId) referenced.add(r.categoryId)
+  for (const c of state.contracts ?? []) if (c.categoryId) referenced.add(c.categoryId)
+
+  const kept = (state.categories ?? []).filter(
+    (c) => c.rules.length > 0 || c.budget !== null || referenced.has(c.id),
+  )
+  const keptLabels = new Set(kept.map((c) => c.label.toLowerCase()))
+  const additions = defaultCategories().filter(
+    (c) => !keptLabels.has(c.label.toLowerCase()),
+  )
+  const categories = [...kept, ...additions]
+
+  const transactions = categorizeAll(
+    state.transactions ?? [],
+    categories,
+    fallbackCategoryId(categories),
+  )
+  return { ...state, categories, transactions }
+}
+
+/** Hebt persistierten State auf die aktuelle Version (5). Idempotent. */
 export function migrateBudgetState(persisted: unknown, version: number): BudgetState {
   let state = persisted as BudgetState & { settings?: { savingsGoal?: number } }
   if (version < 2 || !state.profile) state = addProfile(state)
   if (version < 3 || !state.categories) state = addTransactionLayer(state)
   if (version < 4 || !state.contracts) state = addContractLayer(state)
+  if (version < 5) state = addSpendingCategories(state)
   return state
 }

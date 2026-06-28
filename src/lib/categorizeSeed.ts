@@ -1,6 +1,6 @@
-// Deutsches Starter-Set an Kategorien mit Seed-Regeln für gängige Händler.
-// Reine Factory ohne Seiteneffekte. Matching ist case-insensitive, daher sind
-// lowercase contains-Werte ausreichend. budget bleibt überall null (Nutzer
+// Deutsches Starter-Set an Ausgaben-Kategorien mit Seed-Regeln für gängige
+// Händler. Reine Factory ohne Seiteneffekte. Matching ist case-insensitive,
+// daher reichen lowercase contains-Werte. budget bleibt überall null (Nutzer
 // setzt es später selbst).
 import type { Category, CategoryKind, CategoryRule } from '../types/budget'
 import { createId } from './id'
@@ -22,23 +22,74 @@ interface SeedSpec {
   rules: CategoryRule[]
 }
 
-// Reihenfolge ist bewusst gewählt: spezifische Kategorien zuerst, der
-// regellose Fallback „Sonstiges" zuletzt (greift nie automatisch).
+// Reihenfolge ist bewusst gewählt: spezifische Kategorien zuerst, der regellose
+// Fallback „Sonstiges" zuletzt (greift nie automatisch). categorize() nimmt den
+// ERSTEN Treffer, daher stehen eindeutige Abos vor breiten Einkaufs-Regeln.
 const SEEDS: SeedSpec[] = [
   {
     label: 'Einkommen',
     kind: 'income',
     icon: '💰',
-    rules: [cp('gehalt'), cp('lohn'), pp('gehalt'), pp('lohn'), pp('gutschrift')],
+    rules: [cp('gehalt'), cp('lohn'), cp('arbeitgeber'), pp('gehalt'), pp('lohn'), pp('gutschrift')],
   },
   {
-    label: 'Miete',
+    label: 'Wohnen & Nebenkosten',
     kind: 'fixed',
     icon: '🏠',
-    rules: [cp('vermiet'), pp('miete'), pp('kaltmiete'), pp('warmmiete')],
+    rules: [
+      cp('vermiet'),
+      cp('stadtwerke'),
+      cp('vattenfall'),
+      cp('e.on'),
+      cp('eon energie'),
+      pp('miete'),
+      pp('kaltmiete'),
+      pp('warmmiete'),
+      pp('nebenkosten'),
+      pp('strom'),
+    ],
   },
   {
-    label: 'Lebensmittel',
+    label: 'Handy & Internet',
+    kind: 'fixed',
+    icon: '📱',
+    rules: [
+      cp('telekom'),
+      cp('vodafone'),
+      cp('o2'),
+      cp('telefónica'),
+      cp('aldi talk'),
+      cp('congstar'),
+      cp('1&1'),
+      cp('mobilcom'),
+      cp('drillisch'),
+    ],
+  },
+  {
+    label: 'Abos & Streaming',
+    kind: 'fixed',
+    icon: '🎬',
+    rules: [
+      cp('netflix'),
+      cp('spotify'),
+      cp('disney'),
+      cp('amazon prime'),
+      cp('prime video'),
+      cp('youtube premium'),
+      cp('dazn'),
+      cp('sky '),
+      cp('apple.com/bill'),
+      cp('icloud'),
+    ],
+  },
+  {
+    label: 'Versicherung',
+    kind: 'fixed',
+    icon: '🛡️',
+    rules: [cp('versicherung'), cp('allianz'), cp('huk'), cp('axa'), cp('ergo'), pp('versicherung'), pp('beitrag')],
+  },
+  {
+    label: 'Einkauf',
     kind: 'variable',
     icon: '🛒',
     rules: [
@@ -49,40 +100,64 @@ const SEEDS: SeedSpec[] = [
       cp('kaufland'),
       cp('penny'),
       cp('netto'),
+      cp('real'),
+      cp('norma'),
+      cp('dm '),
+      cp('dm-drogerie'),
+      cp('rossmann'),
+      cp('müller'),
     ],
   },
   {
-    label: 'Mobilität',
+    label: 'Tanken & Mobilität',
     kind: 'variable',
-    icon: '🚗',
-    rules: [cp('db vertrieb'), cp('deutsche bahn'), cp('tankstelle'), cp('aral'), cp('shell')],
+    icon: '⛽',
+    rules: [
+      cp('tankstelle'),
+      cp('aral'),
+      cp('shell'),
+      cp('esso'),
+      cp('jet '),
+      cp('total'),
+      cp('db vertrieb'),
+      cp('deutsche bahn'),
+      cp('flixbus'),
+      cp('bvg'),
+      cp('mvg'),
+      cp('hvv'),
+      cp('uber'),
+    ],
   },
   {
-    label: 'Telekommunikation',
-    kind: 'fixed',
-    icon: '📱',
-    rules: [cp('telekom'), cp('vodafone'), cp('o2'), cp('telefónica')],
-  },
-  {
-    label: 'Abos & Streaming',
-    kind: 'fixed',
-    icon: '🎬',
-    rules: [cp('netflix'), cp('spotify'), cp('disney'), cp('amazon prime'), cp('prime video')],
-  },
-  {
-    label: 'Versicherung',
-    kind: 'fixed',
-    icon: '🛡️',
-    rules: [cp('versicherung'), pp('versicherung'), pp('beitrag')],
+    label: 'Freizeit',
+    kind: 'variable',
+    icon: '🎉',
+    rules: [
+      cp('restaurant'),
+      cp('mcdonald'),
+      cp('burger king'),
+      cp('kfc'),
+      cp('subway'),
+      cp('kino'),
+      cp('cinemaxx'),
+      cp('cineplex'),
+      cp('steam'),
+      cp('playstation'),
+      cp('nintendo'),
+      cp('fitness'),
+      cp('mcfit'),
+      pp('freizeit'),
+    ],
   },
   {
     label: 'Sparen',
     kind: 'savings',
     icon: '🐖',
-    rules: [pp('sparplan'), pp('sparen'), pp('rücklage')],
+    rules: [cp('trade republic'), cp('scalable'), pp('sparplan'), pp('sparen'), pp('rücklage'), pp('etf')],
   },
   {
-    // Fallback-Topf ohne Regeln — wird nie automatisch zugeordnet.
+    // Fallback-Topf ohne Regeln — wird nie automatisch zugeordnet, dient aber
+    // als Auffang für sonst unzuordenbare Buchungen (fallbackCategoryId).
     label: 'Sonstiges',
     kind: 'variable',
     icon: '📦',

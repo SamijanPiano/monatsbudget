@@ -27,11 +27,11 @@ describe('buildImportedTransactions', () => {
     expect(out[0].hash).toBe('h-rewe')
   })
 
-  test('kategorisiert automatisch anhand der Regeln (REWE -> Lebensmittel)', () => {
+  test('kategorisiert automatisch anhand der Regeln (REWE -> Einkauf)', () => {
     const cats = defaultCategories()
-    const lebensmittel = cats.find((c) => c.label === 'Lebensmittel')
+    const einkauf = cats.find((c) => c.label === 'Einkauf')
     const out = buildImportedTransactions([p()], { accountId: 'a', categories: cats, existing: [] })
-    expect(out[0].categoryId).toBe(lebensmittel?.id)
+    expect(out[0].categoryId).toBe(einkauf?.id)
   })
 
   test('unbekannter Empfänger bleibt unkategorisiert (null)', () => {
