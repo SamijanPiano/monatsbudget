@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest'
 import type { Category, CategoryRule, Transaction } from '../types/budget'
-import { matchesRule, categorize, categorizeAll, learnRule } from './categorize'
+import {
+  matchesRule,
+  categorize,
+  categorizeAll,
+  learnRule,
+  fallbackCategoryId,
+} from './categorize'
 
 function tx(partial: Partial<Transaction>): Transaction {
   return {
@@ -115,6 +121,55 @@ describe('categorizeAll', () => {
     expect(JSON.stringify(txs)).toBe(snapshot)
     expect(result).not.toBe(txs)
     expect(result[0]).not.toBe(txs[0])
+  })
+
+  test('mit fallbackId bekommt jede sonst unzugeordnete Buchung die Fallback-Kategorie', () => {
+    const txs = [
+      tx({ id: 'a', counterparty: 'REWE', categoryId: null }),
+      tx({ id: 'b', counterparty: 'Unbekannt', categoryId: null }),
+      tx({ id: 'c', counterparty: 'Egal', categoryId: 'manuell' }),
+    ]
+    const result = categorizeAll(txs, [lebensmittel], 'sonst')
+    expect(result[0].categoryId).toBe('lm') // Regel-Treffer schlägt Fallback
+    expect(result[1].categoryId).toBe('sonst') // kein Treffer → Fallback
+    expect(result[2].categoryId).toBe('manuell') // bestehende Zuordnung bleibt
+  })
+})
+
+describe('fallbackCategoryId', () => {
+  test('findet die Kategorie „Sonstiges" per Label (case-insensitive)', () => {
+    const cats = [
+      cat({ id: 'lm', label: 'Lebensmittel' }),
+      cat({ id: 'sonst', label: 'Sonstiges', rules: [] }),
+    ]
+    expect(fallbackCategoryId(cats)).toBe('sonst')
+  })
+  test('fällt auf regellose variable Kategorie zurück', () => {
+    const cats = [
+      cat({ id: 'lm', label: 'Lebensmittel', rules: [rule({ value: 'rewe' })] }),
+      cat({ id: 'frei', label: 'Freitopf', kind: 'variable', rules: [] }),
+    ]
+    expect(fallbackCategoryId(cats)).toBe('frei')
+  })
+  test('ohne Kategorien null', () => {
+    expect(fallbackCategoryId([])).toBeNull()
+  })
+})
+
+describe('Aral wird „Mobilität" zugeordnet (Tanken)', () => {
+  test('counterparty Aral matcht die Mobilitäts-Regel', () => {
+    const mobilitaet = cat({
+      id: 'mob',
+      label: 'Mobilität',
+      rules: [rule({ match: 'contains', value: 'aral' })],
+    })
+    const sonst = cat({ id: 'sonst', label: 'Sonstiges', rules: [] })
+    const result = categorizeAll(
+      [tx({ counterparty: 'ARAL Tankstelle Berlin' })],
+      [mobilitaet, sonst],
+      fallbackCategoryId([mobilitaet, sonst]),
+    )
+    expect(result[0].categoryId).toBe('mob')
   })
 })
 

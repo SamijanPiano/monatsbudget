@@ -21,7 +21,7 @@ import type { ParsedTransaction } from '../lib/import/types'
 import { buildImportedTransactions } from '../lib/ingest'
 import { detectRecurring } from '../lib/recurring'
 import { contractsFromRecurring } from '../lib/contracts'
-import { learnRule, categorizeAll } from '../lib/categorize'
+import { learnRule, categorizeAll, fallbackCategoryId } from '../lib/categorize'
 import { defaultCategories } from '../lib/categorizeSeed'
 import { aiCategorize as apiAiCategorize } from '../lib/bankApi'
 import { getSyncConfig } from '../lib/syncConfig'
@@ -62,6 +62,8 @@ interface BudgetActions {
   // Transaktions-Schicht (v3)
   importParsed: (parsed: ParsedTransaction[], accountId?: string) => number
   setTransactionCategory: (txId: string, categoryId: string | null) => void
+  /** Ordnet alle noch unkategorisierten Buchungen der „Sonstiges"-Kategorie zu. */
+  backfillCategories: () => void
   addCategory: (category: Category) => void
   updateCategory: (id: string, patch: Partial<Category>) => void
   removeCategory: (id: string) => void
@@ -296,7 +298,8 @@ export const useBudgetStore = create<BudgetStore>()(
           count = news.length
           if (news.length === 0 && categories === state.categories) return {}
           const merged = [...state.transactions, ...news]
-          const transactions = categorizeAll(merged, categories)
+          // Jede Buchung bekommt eine Kategorie: Regel-Treffer oder „Sonstiges".
+          const transactions = categorizeAll(merged, categories, fallbackCategoryId(categories))
           return { categories, transactions, recurringRules: detectRecurring(transactions) }
         })
         return count
@@ -316,6 +319,19 @@ export const useBudgetStore = create<BudgetStore>()(
           // Rückwirkend alle noch unkategorisierten Buchungen mit neuen Regeln zuordnen.
           const recategorized = categorizeAll(transactions, categories)
           return { transactions: recategorized, categories }
+        }),
+
+      backfillCategories: () =>
+        set((state) => {
+          if (!state.transactions.some((t) => t.categoryId === null)) return {}
+          // Erst Regel-Treffer (z. B. Aral → Mobilität), dann „Sonstiges" als
+          // Auffang — so bekommt jede Altbuchung die bestmögliche Kategorie.
+          const transactions = categorizeAll(
+            state.transactions,
+            state.categories,
+            fallbackCategoryId(state.categories),
+          )
+          return { transactions }
         }),
 
       addCategory: (category) =>

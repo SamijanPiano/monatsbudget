@@ -26,6 +26,12 @@ export interface SaldoItem {
   qty: number
   /** Stückpreis in Cent, null = unbekannt */
   price: number | null
+  /**
+   * true -> bereits eingekauft. Steuert allein die Einkaufsliste und ist
+   * bewusst von der Bezahlung (order.paid/amountPaid) entkoppelt.
+   * undefined/false = noch nicht eingekauft.
+   */
+  bought?: boolean
 }
 
 export interface SaldoOrder {

@@ -5,6 +5,7 @@ import { Entry } from './Entry'
 import { Trip } from './Trip'
 import { PersonDetail } from './PersonDetail'
 import { Shopping } from './Shopping'
+import { ProductsView } from './ProductsView'
 
 /**
  * Eigenständige „Sub-App" für Schulden/Auslagen mit interner Navigation
@@ -32,6 +33,8 @@ export function SaldoApp() {
       return <PersonDetail key={current.id} id={current.id} nav={nav} />
     case 'shopping':
       return <Shopping key="shopping" nav={nav} />
+    case 'products':
+      return <ProductsView key="products" nav={nav} />
     default:
       return <Overview key="overview" nav={nav} />
   }

@@ -106,6 +106,69 @@
   color: var(--warn);
 }
 
+/* ── Variable Kosten (geplant) ───────────────────────────────────────────── */
+.varcost-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.varcost-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.varcost-row .num-input {
+  flex: 0 0 auto;
+  width: 104px;
+}
+.varcost-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 0.35rem 0;
+  color: var(--text);
+}
+.varcost-name:focus {
+  outline: none;
+  border-bottom-color: var(--border-strong);
+}
+.varcost-del {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  color: var(--text-muted);
+}
+.varcost-del:hover {
+  background: var(--surface-2);
+  color: var(--negative);
+}
+.varcost-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+.varcost-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: var(--accent, var(--text));
+  padding: 0.5rem 0.2rem;
+}
+.varcost-total {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 /* ── Notice / Plus-Hinweis ───────────────────────────────────────────────── */
 .notice {
   display: flex;

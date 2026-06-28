@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import type { SaldoNav } from './navigation'
 import { useSaldoState } from './useSaldoState'
+import { useSaldoStore } from '../../store/saldoStore'
 import { itemName } from '../../lib/saldo'
 import type { SaldoItem } from '../../types/saldo'
 import { SubHeader } from './SubHeader'
@@ -20,25 +20,32 @@ const isBakery = (name: string) => {
 
 export function Shopping({ nav }: { nav: SaldoNav }) {
   const { state } = useSaldoState()
-  const [checked, setChecked] = useState<Set<string>>(new Set())
+  const checkedIds = useSaldoStore((s) => s.shoppingChecked)
+  const toggleChecked = useSaldoStore((s) => s.toggleShoppingChecked)
+  const clearChecked = useSaldoStore((s) => s.clearShoppingChecked)
+  const completeShopping = useSaldoStore((s) => s.completeShopping)
+  const checked = new Set(checkedIds)
 
-  const toggle = (itemId: string) =>
-    setChecked((prev) => {
-      const next = new Set(prev)
-      if (next.has(itemId)) next.delete(itemId)
-      else next.add(itemId)
-      return next
-    })
-
+  // Die Einkaufsliste zeigt nur noch NICHT eingekaufte Artikel — unabhängig
+  // davon, ob die Person schon bezahlt hat. „Abschließen" markiert die
+  // abgehakten Artikel als eingekauft; die offene Schuld bleibt unter „Schulden".
   const openOrders: { tripId: string; personId: string; name: string; items: SaldoItem[] }[] = []
   for (const trip of state.trips) {
     for (const order of trip.orders) {
-      if (order.items.length === 0) continue
-      if (order.paid || order.amountPaid != null) continue
+      const items = order.items.filter((it) => !it.bought)
+      if (items.length === 0) continue
       const person = state.people.find((p) => p.id === order.personId)
       if (!person) continue
-      openOrders.push({ tripId: trip.id, personId: person.id, name: person.name, items: order.items })
+      openOrders.push({ tripId: trip.id, personId: person.id, name: person.name, items })
     }
+  }
+
+  const visibleIds = new Set(openOrders.flatMap((g) => g.items.map((it) => it.id)))
+  const checkedVisible = [...checked].filter((id) => visibleIds.has(id))
+
+  const finish = () => {
+    completeShopping(checkedVisible)
+    clearChecked()
   }
 
   return (
@@ -73,7 +80,7 @@ export function Shopping({ nav }: { nav: SaldoNav }) {
                         key={item.id}
                         className={`sal-shopping-item ${on ? 'is-done' : ''}`}
                         aria-pressed={on}
-                        onClick={() => toggle(item.id)}
+                        onClick={() => toggleChecked(item.id)}
                       >
                         <span className="sal-shopping-check" aria-hidden="true">
                           {on && <IconCheckMark size={14} />}
@@ -88,9 +95,21 @@ export function Shopping({ nav }: { nav: SaldoNav }) {
               </div>
             )
           })}
-          <button className="sal-shopping-reset" onClick={() => setChecked(new Set())}>
-            <IconRefresh size={16} /> Alle Häkchen zurücksetzen
-          </button>
+          <div className="sal-shopping-foot">
+            <button
+              type="button"
+              className="sal-shopping-finish"
+              disabled={checkedVisible.length === 0}
+              onClick={finish}
+            >
+              <IconCheckMark size={16} />
+              Abschließen
+              {checkedVisible.length > 0 ? ` (${checkedVisible.length})` : ''}
+            </button>
+            <button type="button" className="sal-shopping-reset" onClick={() => clearChecked()}>
+              <IconRefresh size={16} /> Alle Häkchen zurücksetzen
+            </button>
+          </div>
         </>
       )}
     </div>

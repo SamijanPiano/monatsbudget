@@ -14,6 +14,9 @@ interface SaldoActions {
   addPerson: (name: string) => string
   renamePerson: (id: string, name: string) => void
   removePerson: (id: string) => void
+  renameProduct: (id: string, name: string) => void
+  setProductPrice: (id: string, priceCents: number | null) => void
+  removeProduct: (id: string) => void
   addTrip: (dateIso: string) => string
   removeTrip: (id: string) => void
   setTripDate: (id: string, dateIso: string) => void
@@ -23,15 +26,27 @@ interface SaldoActions {
   addFreeItem: (tripId: string, personId: string, label: string, priceCents: number | null, qty?: number) => void
   changeItemQty: (tripId: string, personId: string, itemId: string, delta: number) => void
   setItemPrice: (tripId: string, personId: string, itemId: string, priceCents: number | null) => void
+  setItemBought: (tripId: string, personId: string, itemId: string, bought: boolean) => void
+  /** Markiert die übergebenen Artikel als eingekauft (Einkaufsliste „Abschließen"). */
+  completeShopping: (itemIds: string[]) => void
   setPayment: (
     tripId: string,
     personId: string,
     payload: { paid?: boolean; amountPaid?: number | null },
   ) => void
+  /** Persistierter „im-Wagen"-Zustand der Einkaufsliste (Item-IDs). */
+  toggleShoppingChecked: (itemId: string) => void
+  clearShoppingChecked: () => void
   replaceSaldo: (next: SaldoState) => void
 }
 
-export type SaldoStore = SaldoState & SaldoActions
+/** Zusätzlicher, persistierter UI-Zustand (kein Teil der reinen Saldo-Daten). */
+interface SaldoUiState {
+  /** Abgehakte Artikel der Einkaufsliste (Item-IDs), übersteht Navigation/Reload. */
+  shoppingChecked: string[]
+}
+
+export type SaldoStore = SaldoState & SaldoUiState & SaldoActions
 
 function findOrder(s: SaldoState, tripId: string, personId: string) {
   return s.trips.find((t) => t.id === tripId)?.orders.find((o) => o.personId === personId)
@@ -56,6 +71,7 @@ export const useSaldoStore = create<SaldoStore>()(
         people: [],
         products: [],
         trips: [],
+        shoppingChecked: [],
 
         addPerson: (name) => {
           const id = createId()
@@ -76,6 +92,30 @@ export const useSaldoStore = create<SaldoStore>()(
             s.people = s.people.filter((p) => p.id !== id)
             s.trips.forEach((t) => {
               t.orders = t.orders.filter((o) => o.personId !== id)
+            })
+          }),
+
+        renameProduct: (id, name) =>
+          commit((s) => {
+            const p = s.products.find((x) => x.id === id)
+            if (p) p.name = name.trim()
+          }),
+
+        setProductPrice: (id, priceCents) =>
+          commit((s) => {
+            const p = s.products.find((x) => x.id === id)
+            if (p) p.lastPrice = priceCents
+          }),
+
+        removeProduct: (id) =>
+          commit((s) => {
+            s.products = s.products.filter((p) => p.id !== id)
+            // Verwaiste Item-Referenzen tolerieren: itemName fällt auf label
+            // zurück; ein reiner Produkt-Verweis ohne label wird entfernt.
+            s.trips.forEach((t) => {
+              t.orders.forEach((o) => {
+                o.items = o.items.filter((it) => it.productId !== id || it.label != null)
+              })
             })
           }),
 
@@ -170,6 +210,27 @@ export const useSaldoStore = create<SaldoStore>()(
             }
           }),
 
+        setItemBought: (tripId, personId, itemId, bought) =>
+          commit((s) => {
+            const order = findOrder(s, tripId, personId)
+            const item = order?.items.find((i) => i.id === itemId)
+            if (item) item.bought = bought
+          }),
+
+        completeShopping: (itemIds) => {
+          const ids = new Set(itemIds)
+          if (ids.size === 0) return
+          commit((s) => {
+            s.trips.forEach((t) => {
+              t.orders.forEach((o) => {
+                o.items.forEach((it) => {
+                  if (ids.has(it.id)) it.bought = true
+                })
+              })
+            })
+          })
+        },
+
         setPayment: (tripId, personId, { paid, amountPaid }) =>
           commit((s) => {
             const order = findOrder(s, tripId, personId)
@@ -177,6 +238,15 @@ export const useSaldoStore = create<SaldoStore>()(
             if (paid !== undefined) order.paid = paid
             if (amountPaid !== undefined) order.amountPaid = amountPaid
           }),
+
+        toggleShoppingChecked: (itemId) =>
+          set((state) => ({
+            shoppingChecked: state.shoppingChecked.includes(itemId)
+              ? state.shoppingChecked.filter((id) => id !== itemId)
+              : [...state.shoppingChecked, itemId],
+          })),
+
+        clearShoppingChecked: () => set({ shoppingChecked: [] }),
 
         replaceSaldo: (next) => {
           const clean = sanitizeSaldoState(next)
@@ -187,8 +257,22 @@ export const useSaldoStore = create<SaldoStore>()(
     {
       name: STORAGE_KEY,
       version: 1,
-      partialize: (s) => ({ people: s.people, products: s.products, trips: s.trips }),
-      migrate: (persisted) => sanitizeSaldoState(persisted),
+      partialize: (s) => ({
+        people: s.people,
+        products: s.products,
+        trips: s.trips,
+        shoppingChecked: s.shoppingChecked,
+      }),
+      migrate: (persisted) => {
+        const clean = sanitizeSaldoState(persisted)
+        const checked = (persisted as { shoppingChecked?: unknown })?.shoppingChecked
+        return {
+          ...clean,
+          shoppingChecked: Array.isArray(checked)
+            ? checked.filter((id): id is string => typeof id === 'string')
+            : [],
+        }
+      },
     },
   ),
 )

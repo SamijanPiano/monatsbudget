@@ -6,7 +6,7 @@ import { orderTotal, itemName } from '../../lib/saldo'
 import { euroCents, todayIso, dateLabel } from '../../lib/euro'
 import type { SaldoItem, SaldoState } from '../../types/saldo'
 import { Avatar } from './Avatar'
-import { IconPlus, IconUsers, IconList, IconReceipt, IconCalendar } from '../ui/icons'
+import { IconPlus, IconUsers, IconList, IconReceipt, IconCalendar, IconWallet } from '../ui/icons'
 
 function subline(state: SaldoState, personId: string): string {
   const rows: { date: string; items: SaldoItem[] }[] = []
@@ -48,6 +48,18 @@ export function Overview({ nav }: { nav: SaldoNav }) {
 
   return (
     <div className="sal-view">
+      <div className="sal-ov-topbar">
+        <button
+          type="button"
+          className="sal-iconbtn"
+          aria-label="Produkte verwalten"
+          title="Produkte"
+          onClick={() => nav.go({ name: 'products' })}
+        >
+          <IconWallet size={20} />
+        </button>
+      </div>
+
       <div className="sal-summary">
         <p className="sal-summary__label">Dir wird geschuldet</p>
         <p className={`sal-summary__value ${owedToYou > 0 ? 'text-positive' : 'text-muted'}`}>

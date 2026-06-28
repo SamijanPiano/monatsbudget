@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useBudgetStore, useCashEnabled } from '../../store/budgetStore'
-import type { Transaction } from '../../types/budget'
+import type { Category, Transaction } from '../../types/budget'
 import { Card, SectionTitle } from '../ui/Card'
 import { formatCents, formatMonthId } from '../../lib/format'
 import { currentMonthId } from '../../lib/seed'
@@ -10,30 +10,79 @@ import { CategorySelect } from './CategorySelect'
 import { DisposableHero } from './DisposableHero'
 import { RecurringCard } from './RecurringCard'
 
-/** Sortiert Buchungen nach Datum absteigend und gruppiert sie nach Monat. */
-function groupByMonth(txs: Transaction[]): [string, Transaction[]][] {
-  const sorted = [...txs].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+type GroupMode = 'category' | 'month'
+
+/** Eine Buchungsgruppe mit Titel und Summe (signed Cent). */
+interface TxGroup {
+  key: string
+  title: string
+  txs: Transaction[]
+  sum: number
+}
+
+function sortByDateDesc(txs: Transaction[]): Transaction[] {
+  return [...txs].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+}
+
+function sumOf(txs: Transaction[]): number {
+  return txs.reduce((s, t) => s + t.amount, 0)
+}
+
+/** Gruppiert Buchungen nach Monat (absteigend). */
+function groupByMonth(txs: Transaction[]): TxGroup[] {
   const groups = new Map<string, Transaction[]>()
-  for (const tx of sorted) {
+  for (const tx of sortByDateDesc(txs)) {
     const key = monthKey(tx.date)
     const list = groups.get(key) ?? []
     list.push(tx)
     groups.set(key, list)
   }
+  return [...groups.entries()].map(([key, list]) => ({
+    key,
+    title: formatMonthId(key),
+    txs: list,
+    sum: sumOf(list),
+  }))
+}
+
+/** Gruppiert Buchungen nach Kategorie, sortiert nach Bewegungs-Höhe. */
+function groupByCategory(txs: Transaction[], categories: Category[]): TxGroup[] {
+  const byId = new Map(categories.map((c) => [c.id, c]))
+  const groups = new Map<string, Transaction[]>()
+  for (const tx of sortByDateDesc(txs)) {
+    const key = tx.categoryId ?? '__none__'
+    const list = groups.get(key) ?? []
+    list.push(tx)
+    groups.set(key, list)
+  }
   return [...groups.entries()]
+    .map(([key, list]) => {
+      const cat = byId.get(key)
+      const title = cat ? `${cat.icon ? `${cat.icon} ` : ''}${cat.label}` : 'Ohne Kategorie'
+      return { key, title, txs: list, sum: sumOf(list) }
+    })
+    .sort((a, b) => Math.abs(b.sum) - Math.abs(a.sum))
 }
 
 export function TransactionsView() {
   const transactions = useBudgetStore((s) => s.transactions)
+  const categories = useBudgetStore((s) => s.categories)
   const accounts = useBudgetStore((s) => s.accounts)
   const setAccountBalance = useBudgetStore((s) => s.setAccountBalance)
   const cashEnabled = useCashEnabled()
+  const [groupMode, setGroupMode] = useState<GroupMode>('category')
 
   const checking = accounts.find((a) => a.type === 'checking') ?? accounts[0]
   const cashAccount = accounts.find((a) => a.type === 'cash')
   const key = currentMonthId()
 
-  const groups = useMemo(() => groupByMonth(transactions), [transactions])
+  const groups = useMemo(
+    () =>
+      groupMode === 'category'
+        ? groupByCategory(transactions, categories)
+        : groupByMonth(transactions),
+    [transactions, categories, groupMode],
+  )
 
   const balance = checking?.balance ?? null
   const summary = sumForMonth(transactions, key)
@@ -91,11 +140,34 @@ export function TransactionsView() {
           <SectionTitle title="Buchungen" hint={`${transactions.length} gesamt`} />
           <ImportButton />
         </div>
+        <div className="tx-groupmode" role="group" aria-label="Gruppierung wechseln">
+          <button
+            type="button"
+            className={`tx-seg ${groupMode === 'category' ? 'is-on' : ''}`}
+            aria-pressed={groupMode === 'category'}
+            onClick={() => setGroupMode('category')}
+          >
+            Nach Kategorie
+          </button>
+          <button
+            type="button"
+            className={`tx-seg ${groupMode === 'month' ? 'is-on' : ''}`}
+            aria-pressed={groupMode === 'month'}
+            onClick={() => setGroupMode('month')}
+          >
+            Nach Monat
+          </button>
+        </div>
         <div className="tx-list">
-          {groups.map(([gKey, list]) => (
-            <div key={gKey} className="tx-group">
-              <h3 className="tx-group__head">{formatMonthId(gKey)}</h3>
-              {list.map((tx) => (
+          {groups.map((group) => (
+            <div key={group.key} className="tx-group">
+              <h3 className="tx-group__head">
+                <span>{group.title}</span>
+                <span className={`tx-group__sum tnum ${group.sum < 0 ? 'text-negative' : 'text-positive'}`}>
+                  {formatCents(group.sum)}
+                </span>
+              </h3>
+              {group.txs.map((tx) => (
                 <div key={tx.id} className="tx-row">
                   <div className="tx-row__main">
                     <span className="tx-row__party">{tx.counterparty || 'Unbekannt'}</span>

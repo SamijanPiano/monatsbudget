@@ -4,6 +4,7 @@ export type SaldoScreen =
   | { name: 'trip'; id: string }
   | { name: 'person'; id: string }
   | { name: 'shopping' }
+  | { name: 'products' }
 
 export interface SaldoNav {
   go: (screen: SaldoScreen) => void

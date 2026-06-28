@@ -1,6 +1,7 @@
 import { useBudgetStore } from '../../store/budgetStore'
 import { Card, SectionTitle } from '../ui/Card'
 import { BackBar } from '../ui/BackBar'
+import { VariableCostsCard } from './VariableCostsCard'
 import { CentInput } from '../ui/CentInput'
 import { currentMonthId } from '../../lib/seed'
 import { monthlyCategoryStats } from '../../lib/summary'
@@ -45,6 +46,8 @@ export function BudgetsView({ onBack }: Props) {
   return (
     <div className="view-stack">
       <BackBar onBack={onBack} />
+
+      <VariableCostsCard />
 
       <Card>
         <SectionTitle title="Budgets" hint="Monatliche Limits je Kategorie" />

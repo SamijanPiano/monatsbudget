@@ -49,14 +49,37 @@ export function categorize(
 }
 
 /**
+ * Liefert die id der Fallback-Kategorie „Sonstiges" (regelloser Auffang-Topf),
+ * damit jede Buchung am Ende eine Kategorie bekommt. Sucht zuerst nach dem
+ * Label „Sonstiges", dann nach einer regellosen variablen Kategorie, sonst die
+ * letzte Kategorie. null nur, wenn gar keine Kategorien existieren.
+ */
+export function fallbackCategoryId(categories: Category[]): string | null {
+  if (categories.length === 0) return null
+  const byLabel = categories.find((c) => c.label.toLowerCase() === 'sonstiges')
+  if (byLabel) return byLabel.id
+  const ruleless = categories.find((c) => c.kind === 'variable' && c.rules.length === 0)
+  if (ruleless) return ruleless.id
+  return categories[categories.length - 1].id
+}
+
+/**
  * Füllt categoryId für Buchungen, die noch null sind und für die eine Regel
  * greift. Bestehende (nicht-null) Zuordnungen bleiben unangetastet. Immutabel:
  * gibt ein neues Array mit neuen Objekten zurück, Eingabe bleibt unverändert.
+ *
+ * Mit `fallbackId` bekommt jede sonst unzugeordnete Buchung diese Kategorie —
+ * so hat am Ende garantiert jede Buchung eine Kategorie. Ohne `fallbackId`
+ * (Standard) bleibt das alte Verhalten: kein Treffer => null.
  */
-export function categorizeAll(txs: Transaction[], categories: Category[]): Transaction[] {
+export function categorizeAll(
+  txs: Transaction[],
+  categories: Category[],
+  fallbackId: string | null = null,
+): Transaction[] {
   return txs.map((tx) => {
     if (tx.categoryId !== null) return { ...tx }
-    const categoryId = categorize(tx, categories)
+    const categoryId = categorize(tx, categories) ?? fallbackId
     if (categoryId === null) return { ...tx }
     return { ...tx, categoryId }
   })

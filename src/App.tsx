@@ -44,7 +44,11 @@ export default function App() {
   }, [tab])
 
   useEffect(() => {
-    if (onboarded) checkContractReminders()
+    if (onboarded) {
+      checkContractReminders()
+      // Bestehende, noch unkategorisierte Buchungen einmalig „Sonstiges" zuordnen.
+      useBudgetStore.getState().backfillCategories()
+    }
   }, [onboarded])
 
   if (!onboarded) return <OnboardingWizard />

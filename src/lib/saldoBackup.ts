@@ -50,6 +50,7 @@ function sanitizeItem(it: unknown): SaldoItem | null {
     label: label || null,
     qty: qty && qty > 0 ? qty : 1,
     price: int(r.price),
+    bought: r.bought === true,
   }
 }
 
