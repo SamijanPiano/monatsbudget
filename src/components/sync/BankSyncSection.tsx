@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useBudgetStore } from '../../store/budgetStore'
-import { getSyncConfig, setSyncConfig, isSyncConfigured, type SyncConfig } from '../../lib/syncConfig'
+import {
+  getSyncConfig,
+  setSyncConfig,
+  isSyncConfigured,
+  type SyncConfig,
+} from '../../lib/syncConfig'
 import { listAspsps, startConnect, fetchAccounts, fetchTransactions, type Aspsp } from '../../lib/bankApi'
 import { toParsed } from '../../lib/sync'
 import { Card, SectionTitle } from '../ui/Card'
+import { BankPicker } from './BankPicker'
 
 type Status = { tone: 'ok' | 'error' | 'info'; text: string }
 
@@ -24,32 +30,25 @@ export function BankSyncSection() {
 
   const [config, setLocalConfig] = useState<SyncConfig>(getSyncConfig())
   const [banks, setBanks] = useState<Aspsp[]>([])
-  const [selected, setSelected] = useState('')
+  const [picking, setPicking] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [status, setStatus] = useState<Status | null>(null)
+  // Initial-Status direkt aus der Redirect-URL ableiten (kein Effekt nötig).
+  const [status, setStatus] = useState<Status | null>(() =>
+    new URLSearchParams(window.location.search).get('bank') === 'connected'
+      ? { tone: 'ok', text: 'Bank verbunden. Tippe auf „Jetzt synchronisieren".' }
+      : null,
+  )
 
   const configured = isSyncConfigured(config)
 
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('bank') === 'connected') {
-      setStatus({ tone: 'ok', text: 'Bank verbunden. Tippe auf „Jetzt synchronisieren".' })
-    }
-  }, [])
-
-  function save() {
-    setSyncConfig(config)
-    setLocalConfig(getSyncConfig())
-    setStatus({ tone: 'ok', text: 'Backend gespeichert.' })
-  }
-
-  async function loadBanks() {
+  async function openPicker() {
     setBusy(true)
     setStatus(null)
     try {
       const list = await listAspsps(config)
       setBanks(list)
-      if (list[0]) setSelected(list[0].name)
-      if (list.length === 0) setStatus({ tone: 'info', text: 'Keine Banken zurückgegeben.' })
+      setPicking(true)
+      if (list.length === 0) setStatus({ tone: 'info', text: 'Keine Banken gefunden.' })
     } catch (e) {
       setStatus({ tone: 'error', text: errMsg(e) })
     } finally {
@@ -57,9 +56,7 @@ export function BankSyncSection() {
     }
   }
 
-  async function connect() {
-    const bank = banks.find((b) => b.name === selected)
-    if (!bank) return
+  async function connect(bank: Aspsp) {
     setBusy(true)
     try {
       const redirectUrl = window.location.origin + window.location.pathname
@@ -99,16 +96,73 @@ export function BankSyncSection() {
 
   return (
     <Card>
-      <SectionTitle title="Bank-Sync (live)" hint="Automatischer Abruf via Enable Banking" />
+      <SectionTitle title="Bankkonto" hint="Online anmelden – Umsätze kommen automatisch" />
 
+      {configured ? (
+        <>
+          {picking ? (
+            <BankPicker banks={banks} busy={busy} onSelect={connect} onCancel={() => setPicking(false)} />
+          ) : (
+            <button type="button" className="bank-btn bank-btn--primary" onClick={openPicker} disabled={busy}>
+              {busy ? 'Lade Banken…' : 'Bank verbinden'}
+            </button>
+          )}
+
+          {!picking && (
+            <button
+              type="button"
+              className="bank-btn bank-btn--ghost"
+              onClick={sync}
+              disabled={busy}
+              style={{ marginTop: 'var(--space-3)' }}
+            >
+              Jetzt synchronisieren
+            </button>
+          )}
+        </>
+      ) : (
+        <SetupFallback
+          config={config}
+          onChange={setLocalConfig}
+          onSave={() => {
+            setSyncConfig(config)
+            setLocalConfig(getSyncConfig())
+            setStatus({ tone: 'ok', text: 'Einrichtung gespeichert.' })
+          }}
+        />
+      )}
+
+      {status && <p className={`import__msg import__msg--${status.tone}`}>{status.text}</p>}
+    </Card>
+  )
+}
+
+interface SetupFallbackProps {
+  config: SyncConfig
+  onChange: (config: SyncConfig) => void
+  onSave: () => void
+}
+
+/**
+ * Einmalige technische Einrichtung. Erscheint nur, wenn weder Build-Env noch
+ * localStorage ein Backend liefern — für den normalen Nutzer also nie.
+ */
+function SetupFallback({ config, onChange, onSave }: SetupFallbackProps) {
+  return (
+    <details className="bank-advanced" open>
+      <summary>Einmalige Einrichtung</summary>
+      <p className="sync-hint">
+        Backend (Enable Banking + Cloudflare Worker) hinterlegen — siehe <code>backend/SETUP.md</code>.
+        Danach verbindest du Banken auf Knopfdruck.
+      </p>
       <div className="sync-field">
-        <label className="sync-label">Backend-URL (dein Worker)</label>
+        <label className="sync-label">Backend-URL</label>
         <input
           className="sync-input"
           inputMode="url"
           placeholder="https://…workers.dev"
           value={config.url}
-          onChange={(e) => setLocalConfig({ ...config, url: e.target.value })}
+          onChange={(e) => onChange({ ...config, url: e.target.value })}
         />
       </div>
       <div className="sync-field">
@@ -118,54 +172,12 @@ export function BankSyncSection() {
           type="password"
           placeholder="dein APP_TOKEN"
           value={config.token}
-          onChange={(e) => setLocalConfig({ ...config, token: e.target.value })}
+          onChange={(e) => onChange({ ...config, token: e.target.value })}
         />
       </div>
-      <div className="sync-actions">
-        <button type="button" className="btn btn--outline" onClick={save}>
-          Speichern
-        </button>
-        {configured && (
-          <button type="button" className="btn btn--outline" onClick={loadBanks} disabled={busy}>
-            Banken laden
-          </button>
-        )}
-      </div>
-
-      {configured && banks.length > 0 && (
-        <div className="sync-field">
-          <label className="sync-label">Bank wählen</label>
-          <div className="sync-actions">
-            <select className="sync-input" value={selected} onChange={(e) => setSelected(e.target.value)}>
-              {banks.map((b) => (
-                <option key={b.name} value={b.name}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-            <button type="button" className="btn btn--primary" onClick={connect} disabled={busy}>
-              Bank verbinden
-            </button>
-          </div>
-        </div>
-      )}
-
-      {configured && (
-        <div className="sync-actions" style={{ marginTop: 'var(--space-3)' }}>
-          <button type="button" className="btn btn--primary" onClick={sync} disabled={busy}>
-            Jetzt synchronisieren
-          </button>
-        </div>
-      )}
-
-      {status && <p className={`import__msg import__msg--${status.tone}`}>{status.text}</p>}
-
-      {!configured && (
-        <p className="sync-hint">
-          Noch kein Backend? Die Einrichtung (Enable Banking + Cloudflare Worker) steht in
-          <code> backend/SETUP.md</code>. ~15 Min einmalig — danach syncst du auf Knopfdruck.
-        </p>
-      )}
-    </Card>
+      <button type="button" className="bank-btn bank-btn--primary" onClick={onSave}>
+        Speichern
+      </button>
+    </details>
   )
 }

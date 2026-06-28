@@ -61,7 +61,7 @@ export default function App() {
       <main className="app-main">
         <div className="app-main__inner" key={tab}>
           {tab === 'dashboard' && <Dashboard />}
-          {tab === 'buchungen' && <TransactionsView />}
+          {tab === 'konto' && <TransactionsView />}
           {tab === 'analyse' && <AnalyseView />}
           {tab === 'ai' && <AiChat />}
           {tab === 'schulden' && <SaldoApp />}

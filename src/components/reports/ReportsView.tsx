@@ -98,7 +98,7 @@ export function ReportsView({ onBack }: Props) {
           <div className="empty">
             <h2 className="empty__title">Noch keine Auswertung</h2>
             <p className="empty__text">
-              Sobald du unter „Buchungen" Umsätze importiert hast, erscheinen hier deine
+              Sobald du unter „Konto" Umsätze importiert hast, erscheinen hier deine
               Ausgaben nach Kategorie und der Monatsverlauf.
             </p>
           </div>

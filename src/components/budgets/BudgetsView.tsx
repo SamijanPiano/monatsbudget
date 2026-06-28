@@ -64,7 +64,7 @@ export function BudgetsView({ onBack }: Props) {
           <div className="empty">
             <h2 className="empty__title">Noch keine Kategorien</h2>
             <p className="empty__text">
-              Importiere unter „Buchungen" einen Bankauszug — danach kannst du hier für jede
+              Importiere unter „Konto" einen Bankauszug — danach kannst du hier für jede
               Ausgaben-Kategorie ein Limit setzen und wirst rechtzeitig gewarnt.
             </p>
           </div>

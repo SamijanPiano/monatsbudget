@@ -11,7 +11,6 @@ import { transactionsToCsv } from '../../lib/exportCsv'
 import { isPlus } from '../../lib/entitlements'
 import { formatMonthId } from '../../lib/format'
 import { useSaldoStore, saldoSnapshot } from '../../store/saldoStore'
-import { BankSyncSection } from '../sync/BankSyncSection'
 import { MoreHub } from '../layout/MoreHub'
 import type { TabId } from '../layout/nav'
 
@@ -117,8 +116,6 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
   return (
     <div className="view-stack">
       {onNavigate && <MoreHub onNavigate={onNavigate} />}
-
-      <BankSyncSection />
 
       <Card>
         <SectionTitle title="Sparziel" hint="Optionales langfristiges Ziel (0 = aus)" />

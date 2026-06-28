@@ -8,7 +8,7 @@ import {
 
 export type TabId =
   | 'dashboard'
-  | 'buchungen'
+  | 'konto'
   | 'analyse'
   | 'schulden'
   | 'history'
@@ -29,7 +29,7 @@ export interface TabDef {
 
 export const TABS: TabDef[] = [
   { id: 'dashboard', label: 'Übersicht', icon: IconDashboard },
-  { id: 'buchungen', label: 'Buchungen', icon: IconReceipt },
+  { id: 'konto', label: 'Konto', icon: IconReceipt },
   { id: 'analyse', label: 'Analyse', icon: IconHistory },
   { id: 'settings', label: 'Mehr', icon: IconSettings },
 ]

@@ -54,7 +54,7 @@ export function Dashboard() {
           <div className="empty">
             <h2 className="empty__title">Noch keine Auswertung</h2>
             <p className="empty__text">
-              Importiere unter „Buchungen" deinen ersten Bankauszug — danach erscheinen
+              Importiere unter „Konto" deinen ersten Bankauszug — danach erscheinen
               hier deine Ausgaben-Aufteilung und der Budget-Vergleich automatisch.
             </p>
           </div>

@@ -53,7 +53,7 @@ export function DisposableHero() {
       )}
       {balance === null ? (
         <p className="hero__hint">
-          Trage in „Buchungen" deinen aktuellen Kontostand ein, damit die Berechnung stimmt.
+          Trage in „Konto" deinen aktuellen Kontostand ein, damit die Berechnung stimmt.
         </p>
       ) : (
         <p className="hero__hint">
