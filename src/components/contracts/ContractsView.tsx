@@ -11,6 +11,7 @@ import {
 } from '../../lib/notifications'
 import { formatCents } from '../../lib/format'
 import { dateShort, parseEuroCents, todayIso } from '../../lib/euro'
+import { RecurringForecast } from './RecurringForecast'
 import type { ContractCadence } from '../../types/budget'
 
 interface Props {
@@ -136,6 +137,9 @@ export function ContractsView({ onBack }: Props) {
                       {c.source === 'detected' && ' · erkannt'}
                       {deadline && ` · Frist ${dateShort(deadline)}`}
                     </div>
+                    {!canceled && (
+                      <RecurringForecast contractId={c.id} counterparty={c.counterparty} />
+                    )}
                   </div>
                   <span className={`pill ${canceled ? 'pill--muted' : 'pill--ok'}`}>
                     {canceled ? 'gekündigt' : 'aktiv'}

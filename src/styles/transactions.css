@@ -536,3 +536,11 @@
     justify-self: start;
   }
 }
+
+/* Kategorie-Auswahl mit Lern-Vorschlag nebeneinander */
+.tx-cat-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}

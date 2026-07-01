@@ -407,3 +407,23 @@
   background: var(--surface-3);
   color: var(--text-faint);
 }
+
+/* Variable-Kosten-Zeile mit Lern-Vorschlag darunter */
+.varcost-row-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.varcost-suggestion {
+  padding-left: var(--space-1);
+}
+
+/* Budget-Vorschlag unter der Zeile */
+.budget-row__suggestion {
+  margin-top: var(--space-1);
+}
+
+/* Abo-Fälligkeits-Vorhersage in der Vertragszeile */
+.contract-row__forecast {
+  margin-top: var(--space-1);
+}

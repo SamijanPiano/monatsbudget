@@ -12,6 +12,7 @@ import { isPlus } from '../../lib/entitlements'
 import { formatMonthId } from '../../lib/format'
 import { useSaldoStore, saldoSnapshot } from '../../store/saldoStore'
 import { MoreHub } from '../layout/MoreHub'
+import { LearningSection } from './LearningSection'
 import type { TabId } from '../layout/nav'
 
 interface SettingsViewProps {
@@ -210,6 +211,8 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
           </p>
         </Card>
       )}
+
+      <LearningSection />
 
       <Card>
         <SectionTitle title="Bargeld-Modus" hint="Bar-Kanal ein- oder ausblenden" />

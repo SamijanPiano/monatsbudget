@@ -1,7 +1,10 @@
 import { useBudgetStore } from '../../store/budgetStore'
+import { useLearningStore } from '../../store/learningStore'
+import { budgetSetEvent } from '../../lib/learning/events'
 import { Card, SectionTitle } from '../ui/Card'
 import { BackBar } from '../ui/BackBar'
 import { VariableCostsCard } from './VariableCostsCard'
+import { BudgetSuggestion } from './BudgetSuggestion'
 import { CentInput } from '../ui/CentInput'
 import { currentMonthId } from '../../lib/seed'
 import { monthlyCategoryStats } from '../../lib/summary'
@@ -87,11 +90,23 @@ export function BudgetsView({ onBack }: Props) {
                       value={c.budget}
                       disabled={locked}
                       ariaLabel={`Monatsbudget ${c.label}`}
-                      onCommit={(cents) =>
-                        updateCategory(c.id, { budget: cents && cents > 0 ? cents : null })
-                      }
+                      onCommit={(cents) => {
+                        const budget = cents && cents > 0 ? cents : null
+                        updateCategory(c.id, { budget })
+                        if (budget !== null) {
+                          useLearningStore.getState().record(budgetSetEvent(c.id, budget, key))
+                        }
+                      }}
                     />
                   </div>
+                  {!hasBudget && !locked && (
+                    <div className="budget-row__suggestion">
+                      <BudgetSuggestion
+                        categoryId={c.id}
+                        onApply={(cents) => updateCategory(c.id, { budget: cents })}
+                      />
+                    </div>
+                  )}
                   {hasBudget && (
                     <>
                       <div className="budget-row__track">
