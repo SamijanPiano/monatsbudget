@@ -18,6 +18,7 @@ import type {
 import { createId } from '../lib/id'
 import { defaultCategories } from '../lib/categorizeSeed'
 import { categorizeAll, fallbackCategoryId } from '../lib/categorize'
+import { LEARNING_SETTINGS_DEFAULTS } from '../lib/seed'
 
 function monthHasValues(month: Month): boolean {
   const lines = [...month.income, ...month.fixed, ...month.variable]
@@ -175,12 +176,21 @@ function addSpendingCategories(state: BudgetState): BudgetState {
   return { ...state, categories, transactions }
 }
 
-/** Hebt persistierten State auf die aktuelle Version (5). Idempotent. */
+/** v5 -> v6: ergänzt die Lern-Schicht-Schwellwerte in den Settings (verlustfrei). */
+function addLearningSettings(state: BudgetState): BudgetState {
+  return {
+    ...state,
+    settings: { ...LEARNING_SETTINGS_DEFAULTS, ...state.settings },
+  }
+}
+
+/** Hebt persistierten State auf die aktuelle Version (6). Idempotent. */
 export function migrateBudgetState(persisted: unknown, version: number): BudgetState {
   let state = persisted as BudgetState & { settings?: { savingsGoal?: number } }
   if (version < 2 || !state.profile) state = addProfile(state)
   if (version < 3 || !state.categories) state = addTransactionLayer(state)
   if (version < 4 || !state.contracts) state = addContractLayer(state)
   if (version < 5) state = addSpendingCategories(state)
+  if (version < 6) state = addLearningSettings(state)
   return state
 }

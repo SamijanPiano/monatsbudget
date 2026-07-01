@@ -5,10 +5,18 @@
 import type { Month, Settings } from '../types/budget'
 import { createId } from './id'
 
+/** Default-Schwellwerte/Schalter der Lern-Schicht (auch von der Migration genutzt). */
+export const LEARNING_SETTINGS_DEFAULTS = {
+  autofillThreshold: 0.85,
+  suggestThreshold: 0.4,
+  aiSuggestions: false,
+} as const
+
 export const DEFAULT_SETTINGS: Settings = {
   currency: '€',
   locale: 'de-DE',
   savingsGoal: 0,
+  ...LEARNING_SETTINGS_DEFAULTS,
 }
 
 /** Aktueller Monat im Format YYYY-MM. */

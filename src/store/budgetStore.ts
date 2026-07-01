@@ -30,6 +30,8 @@ import {
 import { defaultCategories } from '../lib/categorizeSeed'
 import { aiCategorize as apiAiCategorize } from '../lib/bankApi'
 import { getSyncConfig } from '../lib/syncConfig'
+import { useLearningStore } from './learningStore'
+import { categoryAssignedEvent } from '../lib/learning/events'
 
 export type Section = 'income' | 'fixed' | 'variable'
 
@@ -280,7 +282,7 @@ export const useBudgetStore = create<BudgetStore>()(
           profile: { ...state.profile, goals: state.profile.goals.filter((g) => g.id !== id) },
         })),
 
-      replaceState: (next) =>
+      replaceState: (next) => {
         set((state) => ({
           months: next.months,
           activeMonthId: next.activeMonthId,
@@ -291,7 +293,13 @@ export const useBudgetStore = create<BudgetStore>()(
           accounts: next.accounts ?? state.accounts,
           recurringRules: next.recurringRules ?? state.recurringRules,
           contracts: next.contracts ?? state.contracts,
-        })),
+        }))
+        // Datenschutz-Grenze: Das Lern-Log ist bewusst NICHT Teil des Backups.
+        // Nach einem Restore darf kein Signal-Rest des alten Datenstands
+        // zurückbleiben (sonst schlagen Vorschläge Empfänger vor, die es im
+        // wiederhergestellten Stand gar nicht gibt).
+        useLearningStore.getState().clear()
+      },
 
       importParsed: (parsed, accountId) => {
         let count = 0
@@ -316,9 +324,9 @@ export const useBudgetStore = create<BudgetStore>()(
         return count
       },
 
-      setTransactionCategory: (txId, categoryId) =>
+      setTransactionCategory: (txId, categoryId) => {
+        const tx = get().transactions.find((t) => t.id === txId)
         set((state) => {
-          const tx = state.transactions.find((t) => t.id === txId)
           if (!tx) return {}
           const transactions = state.transactions.map((t) =>
             t.id === txId ? { ...t, categoryId } : t,
@@ -330,7 +338,13 @@ export const useBudgetStore = create<BudgetStore>()(
           // Rückwirkend alle noch unkategorisierten Buchungen mit neuen Regeln zuordnen.
           const recategorized = categorizeAll(transactions, categories)
           return { transactions: recategorized, categories }
-        }),
+        })
+        // Zusätzlich zur harten Regel ein Lernsignal für den probabilistischen
+        // Kategorie-Predictor ablegen (nur beim Setzen, nicht beim Entfernen).
+        if (tx && categoryId) {
+          useLearningStore.getState().record(categoryAssignedEvent(tx, categoryId, 'manual'))
+        }
+      },
 
       backfillCategories: () =>
         set((state) => {
@@ -449,7 +463,7 @@ export const useBudgetStore = create<BudgetStore>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 5,
+      version: 6,
       migrate: (persisted, version) => migrateBudgetState(persisted, version),
     },
   ),

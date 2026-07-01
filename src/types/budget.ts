@@ -65,6 +65,12 @@ export interface Settings {
   plus?: boolean
   /** Überweisungen (PSD2 PIS) freigeschaltet. Standard aus — Sandbox-first. */
   paymentsEnabled?: boolean
+  /** Lern-Schicht: ab dieser Konfidenz (0..1) wird ein Wert automatisch vorausgefüllt. */
+  autofillThreshold?: number
+  /** Lern-Schicht: ab dieser Konfidenz (0..1) wird ein Wert als Chip vorgeschlagen. */
+  suggestThreshold?: number
+  /** Lern-Schicht: LLM-Fallback bei niedriger lokaler Konfidenz aktiv (opt-in). */
+  aiSuggestions?: boolean
 }
 
 // ─── Transaktions-Schicht (v3) ──────────────────────────────────────────────

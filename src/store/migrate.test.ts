@@ -44,6 +44,39 @@ describe('migrateBudgetState v1 -> v2', () => {
   })
 })
 
+describe('migrateBudgetState v5 -> v6 (Lern-Settings)', () => {
+  const v5Base = () => ({
+    months: { '2026-06': emptyMonth('2026-06') },
+    activeMonthId: '2026-06',
+    settings: { currency: '€', locale: 'de-DE', savingsGoal: 0 },
+    profile: { onboarded: true, cashEnabled: false, goals: [] },
+    transactions: [],
+    categories: [],
+    accounts: [],
+    recurringRules: [],
+    contracts: [],
+  })
+
+  test('ergänzt fehlende Lern-Schwellwerte mit Defaults', () => {
+    const out = migrateBudgetState(v5Base(), 5)
+    expect(out.settings.autofillThreshold).toBe(0.85)
+    expect(out.settings.suggestThreshold).toBe(0.4)
+    expect(out.settings.aiSuggestions).toBe(false)
+  })
+
+  test('bestehende Schwellwerte bleiben erhalten (idempotent)', () => {
+    const state = v5Base()
+    const withValues = {
+      ...state,
+      settings: { ...state.settings, autofillThreshold: 0.7, suggestThreshold: 0.3, aiSuggestions: true },
+    }
+    const out = migrateBudgetState(withValues, 6)
+    expect(out.settings.autofillThreshold).toBe(0.7)
+    expect(out.settings.suggestThreshold).toBe(0.3)
+    expect(out.settings.aiSuggestions).toBe(true)
+  })
+})
+
 const v2Base = (
   months: Record<string, Month>,
   profilePatch: Record<string, unknown> = {},
@@ -251,9 +284,20 @@ describe('migrateBudgetState v4 -> v5 (Ausgaben-Kategorien)', () => {
     expect(assigned?.label).toBe('Einkauf')
   })
 
-  test('bereits v5 bleibt unverändert (idempotent)', () => {
+  test('v5 -> v6: Kategorien bleiben, Lern-Settings kommen dazu', () => {
     const v5 = { ...v4Base([]), categories: [ruleless('a', 'X', 100)] }
     const out = migrateBudgetState(v5, 5)
-    expect(out).toBe(v5)
+    expect(out.categories).toEqual(v5.categories)
+    expect(out.settings.autofillThreshold).toBe(0.85)
+  })
+
+  test('bereits aktueller v6-Stand bleibt unverändert (idempotent)', () => {
+    const v6 = {
+      ...v4Base([]),
+      categories: [ruleless('a', 'X', 100)],
+      settings: { currency: '€', locale: 'de-DE', savingsGoal: 0, autofillThreshold: 0.85, suggestThreshold: 0.4, aiSuggestions: false },
+    }
+    const out = migrateBudgetState(v6, 6)
+    expect(out).toBe(v6)
   })
 })
