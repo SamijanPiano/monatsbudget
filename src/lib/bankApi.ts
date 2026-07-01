@@ -17,7 +17,15 @@ export interface BankAccount {
   balance: number | null
 }
 
+/** Erlaubt nur HTTPS als Transport; HTTP nur für lokale Entwicklung (localhost). */
+function assertSecureUrl(url: string): void {
+  if (url.startsWith('https://')) return
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)) return
+  throw new Error('Backend-URL muss https:// verwenden (Finanzdaten nie unverschlüsselt senden).')
+}
+
 async function call<T>(config: SyncConfig, path: string, init?: RequestInit): Promise<T> {
+  assertSecureUrl(config.url)
   const res = await fetch(`${config.url}${path}`, {
     ...init,
     headers: { 'X-App-Token': config.token, 'Content-Type': 'application/json', ...init?.headers },
