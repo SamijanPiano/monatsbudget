@@ -30,6 +30,8 @@ export interface TransactionOut {
   amount: number; // signed integer cents (negative = DBIT, positive = CRDT)
   counterparty: string;
   purpose: string;
+  /** 'pending' = vorgemerkt (steht zur Abbuchung an), 'booked' = tatsächlich gebucht. */
+  status: 'booked' | 'pending';
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +79,7 @@ export interface EbParty {
 export interface EbTransaction {
   transaction_amount?: EbAmount | null;
   credit_debit_indicator?: string | null; // "CRDT" | "DBIT"
+  status?: string | null; // "BOOK" | "PDNG" | "RJCT" | "CNCL" | "HOLD" | "SCHD" | "OTHR"
   booking_date?: string | null; // "YYYY-MM-DD"
   value_date?: string | null; // fallback if booking_date missing
   creditor?: EbParty | null;
@@ -216,14 +219,36 @@ function signedCents(magnitudeCents: number, indicator: string | null | undefine
   return abs; // CRDT and unknown -> positive
 }
 
+// Status-Codes gemäß Enable Banking / Berlin Group. Vorgemerkte, angehaltene
+// und terminierte Umsätze sind noch KEINE Geldbewegung — sie werden nur
+// markiert. Abgelehnte/stornierte werden komplett verworfen.
+const PENDING_STATUSES = new Set(['PDNG', 'HOLD', 'SCHD']);
+const DROPPED_STATUSES = new Set(['RJCT', 'CNCL']);
+
 /**
- * Normalize a single transaction. Returns null if it has no usable amount,
- * so callers can drop it (a transaction with no amount is meaningless to the PWA).
+ * Leitet den Kontrakt-Status ab. Banken ohne Status-Feld liefern gebuchte
+ * Umsätze mit booking_date; fehlt auch das, ist der Umsatz noch nicht gebucht.
+ * Rückgabe null = Umsatz verwerfen (abgelehnt/storniert).
+ */
+function transactionStatus(tx: EbTransaction): 'booked' | 'pending' | null {
+  const code = (tx.status ?? '').trim().toUpperCase();
+  if (DROPPED_STATUSES.has(code)) return null;
+  if (PENDING_STATUSES.has(code)) return 'pending';
+  if (code === 'BOOK') return 'booked';
+  return tx.booking_date ? 'booked' : 'pending';
+}
+
+/**
+ * Normalize a single transaction. Returns null if it has no usable amount or
+ * was rejected/cancelled, so callers can drop it.
  */
 export function normalizeTransaction(tx: EbTransaction | null | undefined): TransactionOut | null {
   if (!tx) return null;
   const magnitude = toCents(tx.transaction_amount?.amount);
   if (magnitude === null) return null;
+
+  const status = transactionStatus(tx);
+  if (status === null) return null;
 
   const date = (tx.booking_date ?? tx.value_date ?? '').trim();
 
@@ -232,6 +257,7 @@ export function normalizeTransaction(tx: EbTransaction | null | undefined): Tran
     amount: signedCents(magnitude, tx.credit_debit_indicator),
     counterparty: counterpartyName(tx),
     purpose: remittanceToPurpose(tx.remittance_information),
+    status,
   };
 }
 

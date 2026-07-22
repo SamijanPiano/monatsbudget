@@ -140,6 +140,7 @@ describe('normalizeTransaction', () => {
       amount: -2930,
       counterparty: 'REWE Markt GmbH',
       purpose: 'Einkauf Lebensmittel',
+      status: 'booked',
     });
   });
 
@@ -157,6 +158,7 @@ describe('normalizeTransaction', () => {
       amount: 250000,
       counterparty: 'Arbeitgeber AG',
       purpose: 'Gehalt Juni',
+      status: 'booked',
     });
   });
 
@@ -189,12 +191,65 @@ describe('normalizeTransaction', () => {
       amount: 1000,
       counterparty: '',
       purpose: '',
+      status: 'booked',
     });
   });
 
   it('returns null when there is no usable amount', () => {
     expect(normalizeTransaction({ credit_debit_indicator: 'DBIT' })).toBeNull();
     expect(normalizeTransaction(null)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Transaktions-Status — vorgemerkte Umsätze dürfen nicht als gebucht gelten
+// ---------------------------------------------------------------------------
+
+describe('transaction status (vorgemerkt vs. gebucht)', () => {
+  const base: EbTransaction = {
+    transaction_amount: { amount: '30.00' },
+    credit_debit_indicator: 'DBIT',
+    booking_date: '2026-07-10',
+    creditor: { name: 'Shop' },
+  };
+
+  it('marks BOOK as booked', () => {
+    expect(normalizeTransaction({ ...base, status: 'BOOK' })?.status).toBe('booked');
+  });
+
+  it('marks PDNG as pending', () => {
+    expect(normalizeTransaction({ ...base, status: 'PDNG' })?.status).toBe('pending');
+  });
+
+  it('marks HOLD and SCHD as pending', () => {
+    expect(normalizeTransaction({ ...base, status: 'HOLD' })?.status).toBe('pending');
+    expect(normalizeTransaction({ ...base, status: 'SCHD' })?.status).toBe('pending');
+  });
+
+  it('drops RJCT and CNCL entirely', () => {
+    expect(normalizeTransaction({ ...base, status: 'RJCT' })).toBeNull();
+    expect(normalizeTransaction({ ...base, status: 'CNCL' })).toBeNull();
+  });
+
+  it('treats a missing status with booking_date as booked (banks without status field)', () => {
+    expect(normalizeTransaction(base)?.status).toBe('booked');
+  });
+
+  it('treats a missing status without booking_date as pending', () => {
+    const tx: EbTransaction = { ...base, booking_date: null, value_date: '2026-07-10' };
+    expect(normalizeTransaction(tx)?.status).toBe('pending');
+  });
+
+  it('normalizeTransactions keeps pending flagged and drops rejected', () => {
+    const out = normalizeTransactions({
+      transactions: [
+        { ...base, status: 'BOOK' },
+        { ...base, status: 'PDNG' },
+        { ...base, status: 'RJCT' },
+      ],
+    });
+    expect(out).toHaveLength(2);
+    expect(out.map((t) => t.status)).toEqual(['booked', 'pending']);
   });
 });
 
