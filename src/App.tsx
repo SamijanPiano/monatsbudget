@@ -11,6 +11,7 @@ import { SaldoApp } from './components/saldo/SaldoApp'
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard'
 import { AiChat } from './components/ai/AiChat'
 import { BudgetsView } from './components/budgets/BudgetsView'
+import { PlanView } from './components/plan/PlanView'
 import { ReportsView } from './components/reports/ReportsView'
 import { AccountsView } from './components/accounts/AccountsView'
 import { ContractsView } from './components/contracts/ContractsView'
@@ -66,6 +67,7 @@ export default function App() {
           {tab === 'ai' && <AiChat />}
           {tab === 'schulden' && <SaldoApp />}
           {tab === 'history' && <HistoryView />}
+          {tab === 'plan' && <PlanView onBack={backToMore} />}
           {tab === 'budgets' && <BudgetsView onBack={backToMore} />}
           {tab === 'berichte' && <ReportsView onBack={backToMore} />}
           {tab === 'vermoegen' && <AccountsView onBack={backToMore} />}

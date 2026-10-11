@@ -1,15 +1,8 @@
-import { useMemo, useState } from 'react'
 import { useBudgetStore, useCashEnabled } from '../../store/budgetStore'
-import { useLearningStore } from '../../store/learningStore'
-import type { LineItem } from '../../types/budget'
 import { Card, SectionTitle } from '../ui/Card'
 import { formatMoney } from '../../lib/format'
-import { parseEuroCents } from '../../lib/euro'
-import { IconPlus, IconTrash } from '../ui/icons'
-import { useSuggestion } from '../../hooks/useSuggestion'
-import { amountPredictor, type AmountContext } from '../../lib/learning/amountPredictor'
-import { itemCreatedEvent } from '../../lib/learning/events'
-import { SuggestionBadge } from '../learning/SuggestionBadge'
+import { IconPlus } from '../ui/icons'
+import { PlanItemRow } from '../plan/PlanItemRow'
 
 /**
  * Eingabe der geplanten variablen Kosten des aktiven Monats (Month.variable).
@@ -35,7 +28,13 @@ export function VariableCostsCard() {
       ) : (
         <div className="varcost-list">
           {items.map((it) => (
-            <VariableCostRow key={it.id} item={it} cashEnabled={cashEnabled} />
+            <PlanItemRow
+              key={it.id}
+              section="variable"
+              item={it}
+              showBar={cashEnabled}
+              placeholder="z. B. Lebensmittel"
+            />
           ))}
         </div>
       )}
@@ -51,132 +50,5 @@ export function VariableCostsCard() {
         )}
       </div>
     </Card>
-  )
-}
-
-function VariableCostRow({ item, cashEnabled }: { item: LineItem; cashEnabled: boolean }) {
-  const updateItem = useBudgetStore((s) => s.updateItem)
-  const removeItem = useBudgetStore((s) => s.removeItem)
-  const [label, setLabel] = useState(item.label)
-
-  // Vorschlag für den Betrag aus früheren gleichnamigen Posten (Cent-basiert).
-  // Stabile ctx-Identität, damit useSuggestion nur bei echten Änderungen neu rechnet.
-  const suggestionCtx: AmountContext = useMemo(
-    () => ({ labelKey: item.label, section: 'variable' }),
-    [item.label],
-  )
-  const { top, mode, accept, dismiss } = useSuggestion({
-    predictor: amountPredictor,
-    ctx: suggestionCtx,
-    surface: 'item',
-  })
-
-  const commitLabel = () => {
-    const trimmed = label.trim()
-    if (trimmed !== item.label) updateItem('variable', item.id, { label: trimmed })
-  }
-
-  // Betrag committen (in Euro) und als Cent-Signal für die Lern-Schicht ablegen.
-  const commitKonto = (euros: number) => {
-    updateItem('variable', item.id, { konto: euros })
-    const cents = Math.round(euros * 100)
-    if (item.label.trim() !== '' && cents !== 0) {
-      useLearningStore.getState().record(itemCreatedEvent(item, 'variable', cents, null, false))
-    }
-  }
-
-  const applySuggestion = () => {
-    if (!top) return
-    updateItem('variable', item.id, { konto: top.value / 100 })
-    accept(top.value)
-  }
-
-  const showSuggestion =
-    item.konto === 0 && item.label.trim() !== '' && mode !== 'none' && top !== null
-
-  return (
-    <div className="varcost-row-wrap">
-      <div className="varcost-row">
-        <input
-          className="varcost-name"
-          value={label}
-          aria-label="Bezeichnung"
-          placeholder="z. B. Lebensmittel"
-          onChange={(e) => setLabel(e.target.value)}
-          onBlur={commitLabel}
-        />
-        <EuroInput
-          value={item.konto}
-          ariaLabel={`Betrag ${item.label || 'variable Kosten'}`}
-          onCommit={commitKonto}
-        />
-        {cashEnabled && (
-          <EuroInput
-            value={item.bar}
-            ariaLabel={`Bar-Betrag ${item.label || 'variable Kosten'}`}
-            onCommit={(euros) => updateItem('variable', item.id, { bar: euros })}
-          />
-        )}
-        <button
-          type="button"
-          className="varcost-del"
-          aria-label="Posten löschen"
-          onClick={() => removeItem('variable', item.id)}
-        >
-          <IconTrash size={16} />
-        </button>
-      </div>
-      {showSuggestion && (
-        <div className="varcost-suggestion">
-          <SuggestionBadge
-            label={formatMoney(top.value / 100)}
-            confidence={top.confidence}
-            mode={mode === 'autofill' ? 'autofill' : 'suggest'}
-            onConfirm={applySuggestion}
-            onDismiss={dismiss}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
-interface EuroInputProps {
-  value: number
-  ariaLabel: string
-  onCommit: (euros: number) => void
-}
-
-/** Euro-Eingabe (LineItem ist Euro-basiert). Parst deutsche Schreibweise. */
-function EuroInput({ value, ariaLabel, onCommit }: EuroInputProps) {
-  const [draft, setDraft] = useState<string | null>(null)
-  const formatted = value
-    ? value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : ''
-  const display = draft ?? formatted
-
-  return (
-    <div className="num-input num-input--sm">
-      <input
-        type="text"
-        inputMode="decimal"
-        value={display}
-        placeholder="0,00"
-        aria-label={ariaLabel}
-        onFocus={(e) => {
-          setDraft(formatted)
-          e.target.select()
-        }}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => {
-          const cents = parseEuroCents(draft ?? '')
-          onCommit(cents == null ? 0 : cents / 100)
-          setDraft(null)
-        }}
-      />
-      <span className="num-input__suffix" aria-hidden="true">
-        €
-      </span>
-    </div>
   )
 }

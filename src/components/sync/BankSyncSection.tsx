@@ -7,7 +7,8 @@ import {
   type SyncConfig,
 } from '../../lib/syncConfig'
 import { listAspsps, startConnect, fetchAccounts, fetchTransactions, type Aspsp } from '../../lib/bankApi'
-import { toParsed } from '../../lib/sync'
+import { toParsed, pendingSummary } from '../../lib/sync'
+import { formatCents } from '../../lib/format'
 import { Card, SectionTitle } from '../ui/Card'
 import { BankPicker } from './BankPicker'
 
@@ -27,6 +28,7 @@ export function BankSyncSection() {
   const importParsed = useBudgetStore((s) => s.importParsed)
   const accounts = useBudgetStore((s) => s.accounts)
   const setAccountBalance = useBudgetStore((s) => s.setAccountBalance)
+  const setBankPending = useBudgetStore((s) => s.setBankPending)
 
   const [config, setLocalConfig] = useState<SyncConfig>(getSyncConfig())
   const [banks, setBanks] = useState<Aspsp[]>([])
@@ -79,15 +81,33 @@ export function BankSyncSection() {
       }
       const since = daysAgoIso(90)
       let total = 0
+      let pendingCount = 0
+      let pendingCents = 0
       for (const a of accs) {
         const rows = await fetchTransactions(config, a.id, since)
+        const pending = pendingSummary(rows)
+        pendingCount += pending.count
+        pendingCents += pending.amountCents
         total += importParsed(toParsed(rows))
       }
-      setStatus({
-        tone: 'ok',
-        text: total > 0 ? `${total} neue Buchungen synchronisiert.` : 'Keine neuen Buchungen.',
-      })
+      // Vorgemerkte Umsätze werden nicht importiert, aber gemerkt und angezeigt.
+      setBankPending(
+        pendingCount > 0
+          ? { count: pendingCount, amountCents: pendingCents, syncedAt: new Date().toISOString() }
+          : null,
+      )
+      const baseText = total > 0 ? `${total} neue Buchungen synchronisiert.` : 'Keine neuen Buchungen.'
+      const pendingText =
+        pendingCount > 0
+          ? ` ${formatCents(Math.abs(pendingCents))} (${pendingCount} ${
+              pendingCount === 1 ? 'Umsatz' : 'Umsätze'
+            }) noch nicht abgebucht.`
+          : ''
+      setStatus({ tone: 'ok', text: baseText + pendingText })
     } catch (e) {
+      // Veralteten Pending-Stand nicht stehen lassen — lieber nichts anzeigen
+      // als einen falschen Betrag aus einem früheren Sync.
+      setBankPending(null)
       setStatus({ tone: 'error', text: errMsg(e) })
     } finally {
       setBusy(false)

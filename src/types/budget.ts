@@ -176,6 +176,15 @@ export interface Contract {
   linkedCounterpartyKey?: string
 }
 
+/** Ergebnis des letzten Bank-Syncs: vorgemerkte, noch nicht abgebuchte Umsätze. */
+export interface BankPending {
+  count: number
+  /** Summe in Cent, signed (negativ = anstehende Abbuchungen). */
+  amountCents: number
+  /** ISO-Zeitpunkt des Syncs. */
+  syncedAt: string
+}
+
 export interface BudgetState {
   months: Record<string, Month>
   activeMonthId: string
@@ -191,6 +200,8 @@ export interface BudgetState {
   recurringRules: RecurringRule[]
   /** v4: Verträge & Abos (erkannt oder manuell). */
   contracts: Contract[]
+  /** v6.1: vorgemerkte Umsätze aus dem letzten Bank-Sync (null = keine/kein Sync). */
+  bankPending: BankPending | null
 }
 
 /** Abgeleitete Werte eines Monats (entspricht den Excel-Formeln). */

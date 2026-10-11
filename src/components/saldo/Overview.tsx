@@ -31,11 +31,16 @@ export function Overview({ nav }: { nav: SaldoNav }) {
 
   let owedToYou = 0
   let youOwe = 0
+  const creditPeople: { id: string; name: string; amount: number }[] = []
   for (const p of state.people) {
     const b = balances[p.id] ?? 0
     if (b < 0) owedToYou += -b
-    else if (b > 0) youOwe += b
+    else if (b > 0) {
+      youOwe += b
+      creditPeople.push({ id: p.id, name: p.name, amount: b })
+    }
   }
+  creditPeople.sort((a, b) => b.amount - a.amount)
 
   const activeIds = new Set<string>()
   state.trips.forEach((t) => t.orders.forEach((o) => activeIds.add(o.personId)))
@@ -66,7 +71,22 @@ export function Overview({ nav }: { nav: SaldoNav }) {
           {euroCents(owedToYou)}
         </p>
         {youOwe > 0 ? (
-          <p className="sal-summary__sub text-negative">Du schuldest {euroCents(youOwe)}</p>
+          <>
+            <p className="sal-summary__sub text-negative">Du schuldest {euroCents(youOwe)}</p>
+            {/* Direktzugriff: überzahlte Personen antippen → Detail mit „Schuld abschließen". */}
+            <div className="sal-credit-chips">
+              {creditPeople.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="sal-chip"
+                  onClick={() => nav.go({ name: 'person', id: p.id })}
+                >
+                  {p.name} · {euroCents(p.amount)}
+                </button>
+              ))}
+            </div>
+          </>
         ) : owedToYou === 0 ? (
           <p className="sal-summary__sub text-muted">Alles ausgeglichen.</p>
         ) : null}

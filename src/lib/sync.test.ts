@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { toParsed, type BankTxn } from './sync'
+import { toParsed, pendingSummary, type BankTxn } from './sync'
 
 const row = (over: Partial<BankTxn> = {}): BankTxn => ({
   date: '2026-06-01',
@@ -37,5 +37,36 @@ describe('toParsed (Bank-Sync → Import-Pipeline)', () => {
 
   test('leere Eingabe → leeres Ergebnis', () => {
     expect(toParsed([])).toEqual([])
+  })
+
+  test('vorgemerkte Umsätze (pending) werden NICHT übernommen', () => {
+    const out = toParsed([
+      row({ status: 'booked' }),
+      row({ status: 'pending', amount: -3000 }),
+    ])
+    expect(out).toHaveLength(1)
+    expect(out[0].amount).toBe(-1299)
+  })
+
+  test('fehlender Status zählt als gebucht (ältere Backends)', () => {
+    expect(toParsed([row()])).toHaveLength(1)
+  })
+})
+
+describe('pendingSummary (noch nicht abgebuchte Umsätze)', () => {
+  test('summiert Anzahl und Betrag der vorgemerkten Umsätze', () => {
+    const summary = pendingSummary([
+      row({ status: 'booked' }),
+      row({ status: 'pending', amount: -3000 }),
+      row({ status: 'pending', amount: -999 }),
+    ])
+    expect(summary).toEqual({ count: 2, amountCents: -3999 })
+  })
+
+  test('ohne vorgemerkte Umsätze → 0/0', () => {
+    expect(pendingSummary([row(), row({ status: 'booked' })])).toEqual({
+      count: 0,
+      amountCents: 0,
+    })
   })
 })

@@ -295,6 +295,17 @@
 .account-row__amount--liability {
   color: var(--negative);
 }
+.account-row__amount-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.account-row__pending {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── Verträge ────────────────────────────────────────────────────────────── */
 .contract-row {

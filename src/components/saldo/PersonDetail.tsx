@@ -61,6 +61,23 @@ export function PersonDetail({ id, nav }: { id: string; nav: SaldoNav }) {
       <div className={`sal-balance-panel sal-bp-${bp}`}>
         <span className="sal-balance-panel__label">{bpLabel}</span>
         <span className="sal-balance-panel__value">{bpValue}</span>
+        {balance > 0 && (
+          <button
+            type="button"
+            className="sal-settle-btn"
+            onClick={() => {
+              if (
+                confirm(
+                  `Guthaben von ${euroCents(balance)} als zurückgegeben verbuchen? Der Saldo von ${person.name} steht danach auf 0 €.`,
+                )
+              ) {
+                store.getState().settleBalance(person.id)
+              }
+            }}
+          >
+            <IconCheckMark size={16} /> Schuld abschließen – Betrag zurückgegeben
+          </button>
+        )}
       </div>
 
       {openOrders.length > 0 && (

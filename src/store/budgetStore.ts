@@ -5,6 +5,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
   Account,
+  BankPending,
   BudgetState,
   Category,
   Contract,
@@ -81,6 +82,8 @@ interface BudgetActions {
   updateCategory: (id: string, patch: Partial<Category>) => void
   removeCategory: (id: string) => void
   setAccountBalance: (accountId: string, balance: number | null) => void
+  /** Merkt sich die vorgemerkten (noch nicht abgebuchten) Umsätze des letzten Syncs. */
+  setBankPending: (pending: BankPending | null) => void
   aiCategorize: () => Promise<void>
   // Konten (v4)
   addAccount: (account: Omit<Account, 'id'>) => void
@@ -110,6 +113,7 @@ function initialState(): BudgetState {
     ],
     recurringRules: [],
     contracts: [],
+    bankPending: null,
   }
 }
 
@@ -391,6 +395,8 @@ export const useBudgetStore = create<BudgetStore>()(
         set((state) => ({
           accounts: state.accounts.map((a) => (a.id === accountId ? { ...a, balance } : a)),
         })),
+
+      setBankPending: (pending) => set({ bankPending: pending }),
 
       aiCategorize: async () => {
         const state = get()

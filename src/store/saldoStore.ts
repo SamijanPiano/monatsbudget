@@ -6,6 +6,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { SaldoItem, SaldoState, SaldoTrip } from '../types/saldo'
 import { createId } from '../lib/id'
+import { balanceOf } from '../lib/saldo'
+import { todayIso } from '../lib/euro'
 import { sanitizeSaldoState } from '../lib/saldoBackup'
 
 const STORAGE_KEY = 'saldo-v1'
@@ -34,6 +36,11 @@ interface SaldoActions {
     personId: string,
     payload: { paid?: boolean; amountPaid?: number | null },
   ) => void
+  /**
+   * Gleicht den Saldo einer Person auf 0 aus (z. B. Guthaben bar zurückgegeben).
+   * Legt dazu einen Ausgleichs-Eintrag mit heutigem Datum an.
+   */
+  settleBalance: (personId: string) => void
   /** Persistierter „im-Wagen"-Zustand der Einkaufsliste (Item-IDs). */
   toggleShoppingChecked: (itemId: string) => void
   clearShoppingChecked: () => void
@@ -237,6 +244,25 @@ export const useSaldoStore = create<SaldoStore>()(
             if (!order) return
             if (paid !== undefined) order.paid = paid
             if (amountPaid !== undefined) order.amountPaid = amountPaid
+          }),
+
+        settleBalance: (personId) =>
+          commit((s) => {
+            if (!s.people.some((p) => p.id === personId)) return
+            if (balanceOf(s, personId) === 0) return
+            // Eine bezahlte Bestellung ohne Posten gleicht per Ledger-Regel
+            // (effectivePaid = total − prevBalance) jeden Saldo exakt aus —
+            // aber nur als chronologisch LETZTER Eintrag der Person. Deshalb
+            // nie vor einem zukünftig datierten Trip einsortieren.
+            let date = todayIso()
+            for (const t of s.trips) {
+              if (t.date > date && t.orders.some((o) => o.personId === personId)) date = t.date
+            }
+            s.trips.push({
+              id: createId(),
+              date,
+              orders: [{ personId, items: [], paid: true, amountPaid: null }],
+            })
           }),
 
         toggleShoppingChecked: (itemId) =>

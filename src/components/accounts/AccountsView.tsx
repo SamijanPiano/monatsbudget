@@ -44,6 +44,7 @@ export function AccountsView({ onBack }: Props) {
   const addAccount = useBudgetStore((s) => s.addAccount)
   const removeAccount = useBudgetStore((s) => s.removeAccount)
   const setAccountBalance = useBudgetStore((s) => s.setAccountBalance)
+  const bankPending = useBudgetStore((s) => s.bankPending)
 
   const [name, setName] = useState('')
   const [type, setType] = useState<AccountType>('cash')
@@ -104,12 +105,19 @@ export function AccountsView({ onBack }: Props) {
                   </div>
                 </div>
                 {synced ? (
-                  <span
-                    className={`account-row__amount tnum ${
-                      account.isLiability ? 'account-row__amount--liability' : ''
-                    }`}
-                  >
-                    {account.balance != null ? formatCents(account.balance) : '—'}
+                  <span className="account-row__amount-wrap">
+                    <span
+                      className={`account-row__amount tnum ${
+                        account.isLiability ? 'account-row__amount--liability' : ''
+                      }`}
+                    >
+                      {account.balance != null ? formatCents(account.balance) : '—'}
+                    </span>
+                    {bankPending && account.type === 'checking' && (
+                      <span className="account-row__pending">
+                        {formatCents(Math.abs(bankPending.amountCents))} noch nicht abgebucht
+                      </span>
+                    )}
                   </span>
                 ) : (
                   <CentInput

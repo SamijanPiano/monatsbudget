@@ -11,6 +11,7 @@ vi.stubGlobal('localStorage', {
 })
 
 const { useSaldoStore } = await import('./saldoStore')
+const { balanceOf } = await import('../lib/saldo')
 
 /** Legt eine Person mit einer Bestellung samt einem Artikel an. Gibt IDs zurück. */
 function seedOrderWithItem(): { personId: string; tripId: string; itemId: string } {
@@ -90,5 +91,60 @@ describe('Produkte-Editor', () => {
     expect(useSaldoStore.getState().products).toHaveLength(0)
     // Reiner Produkt-Verweis ohne Label wird entfernt.
     expect(useSaldoStore.getState().trips[0].orders[0].items).toHaveLength(0)
+  })
+})
+
+describe('settleBalance — Schuld/Guthaben abschließen', () => {
+  const snapshot = () => {
+    const s = useSaldoStore.getState()
+    return { people: s.people, products: s.products, trips: s.trips }
+  }
+
+  test('gleicht ein Guthaben (Überzahlung) auf 0 aus', () => {
+    const { personId, tripId } = seedOrderWithItem() // Bestellung über 0,99 €
+    useSaldoStore.getState().setPayment(tripId, personId, { amountPaid: 500 }) // 5,00 € erhalten
+    expect(balanceOf(snapshot(), personId)).toBe(401) // 4,01 € Guthaben
+
+    useSaldoStore.getState().settleBalance(personId)
+
+    expect(balanceOf(snapshot(), personId)).toBe(0)
+    const trips = useSaldoStore.getState().trips
+    expect(trips).toHaveLength(2)
+    const settle = trips[1].orders[0]
+    expect(settle.personId).toBe(personId)
+    expect(settle.paid).toBe(true)
+    expect(settle.items).toHaveLength(0)
+  })
+
+  test('gleicht auch eine offene Schuld auf 0 aus', () => {
+    const { personId } = seedOrderWithItem() // 0,99 € offen -> balance -99
+    expect(balanceOf(snapshot(), personId)).toBe(-99)
+    useSaldoStore.getState().settleBalance(personId)
+    expect(balanceOf(snapshot(), personId)).toBe(0)
+  })
+
+  test('bei ausgeglichenem Saldo passiert nichts (kein leerer Trip)', () => {
+    const { personId, tripId } = seedOrderWithItem()
+    useSaldoStore.getState().setPayment(tripId, personId, { paid: true }) // exakt ausgeglichen
+    expect(balanceOf(snapshot(), personId)).toBe(0)
+    useSaldoStore.getState().settleBalance(personId)
+    expect(useSaldoStore.getState().trips).toHaveLength(1)
+  })
+
+  test('unbekannte Person → kein Effekt', () => {
+    seedOrderWithItem()
+    useSaldoStore.getState().settleBalance('gibt-es-nicht')
+    expect(useSaldoStore.getState().trips).toHaveLength(1)
+  })
+
+  test('gleicht auch bei zukünftig datiertem Trip auf 0 aus', () => {
+    const { personId } = seedOrderWithItem() // 0,99 € offen -> balance -99
+    // Zukünftiger Trip mit fixer Zahlung: läge der Ausgleich davor, wäre der Endsaldo ≠ 0.
+    const futureTrip = useSaldoStore.getState().addTrip('2099-01-01')
+    useSaldoStore.getState().addPersonToTrip(futureTrip, personId)
+    useSaldoStore.getState().setPayment(futureTrip, personId, { amountPaid: 1500 })
+
+    useSaldoStore.getState().settleBalance(personId)
+    expect(balanceOf(snapshot(), personId)).toBe(0)
   })
 })

@@ -10,6 +10,7 @@ import './styles/onboarding.css'
 import './styles/transactions.css'
 import './styles/ai.css'
 import './styles/features.css'
+import './styles/plan.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(

@@ -4,6 +4,7 @@ import {
   IconAI,
   IconBank,
   IconPieChart,
+  IconPlan,
   IconSend,
   IconShield,
   IconUsers,
@@ -19,6 +20,7 @@ interface HubItem {
 }
 
 const ITEMS: HubItem[] = [
+  { id: 'plan', label: 'Monatsplan', hint: 'Posten eintragen, Rest rechnet', icon: IconPlan },
   { id: 'budgets', label: 'Budgets', hint: 'Limits je Kategorie', icon: IconWallet },
   { id: 'berichte', label: 'Berichte', hint: 'Ausgaben über die Zeit', icon: IconPieChart },
   { id: 'vermoegen', label: 'Vermögen', hint: 'Konten & Gesamtvermögen', icon: IconBank },
