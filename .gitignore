@@ -35,3 +35,6 @@ docs/superpowers/
 
 # Lokale Startdaten mit echten Werten – niemals committen
 Monatsbudget-Startdaten.json
+
+# Vite-Vorbündelung (lokaler Cache)
+.vite/
