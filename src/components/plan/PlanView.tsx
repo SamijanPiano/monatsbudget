@@ -1,7 +1,6 @@
-import { useCashEnabled } from '../../store/budgetStore'
-import { useActiveMonth } from '../../hooks/useActiveMonth'
-import { verdictTone } from '../../lib/plan'
-import { formatMoney, formatMonthId } from '../../lib/format'
+import { usePlanStore } from '../../store/planStore'
+import { calcPlan, verdictTone } from '../../lib/plan'
+import { formatMoney } from '../../lib/format'
 import { Card } from '../ui/Card'
 import { BackBar } from '../ui/BackBar'
 import { PlanSection } from './PlanSection'
@@ -12,71 +11,62 @@ interface PlanViewProps {
 }
 
 /**
- * Monatsplan: Einzelposten eintragen, alles Weitere rechnet die App
- * (Nachbau der Excel „Monatskalkulation", Formeln in lib/calc.ts).
+ * Monatsplan: ein einziger Plan, den man jederzeit ändert. Alles wird sofort
+ * gespeichert und neu gerechnet (Nachbau der Excel „Monatskalkulation").
  */
 export function PlanView({ onBack }: PlanViewProps) {
-  const { activeMonthId, month, calc, situation } = useActiveMonth()
-  const cashEnabled = useCashEnabled()
-  const tone = verdictTone(month, calc, situation)
+  const plan = usePlanStore((s) => s.plan)
+  const calc = calcPlan(plan)
+  const tone = verdictTone(plan, calc)
 
-  const outgoing = calc.fixedTotal + calc.variableKonto
   const formula =
-    `${formatMoney(calc.incomeKonto)} rein − ${formatMoney(outgoing)} raus` +
-    ` − ${formatMoney(calc.savingsKonto)} sparen`
+    `${formatMoney(calc.income)} rein − ${formatMoney(calc.needed)} raus` +
+    ` − ${formatMoney(calc.savings)} sparen`
 
   return (
     <div className="view-stack">
       <BackBar onBack={onBack} />
 
       <Card className="plan-hero">
-        <span className="plan-hero__eyebrow">Monatsplan · {formatMonthId(activeMonthId)}</span>
-        <span className="plan-hero__label">Puffer auf dem Konto nach Plan</span>
-        <span
-          className={`plan-hero__value tnum${calc.bufferKonto < 0 ? ' text-negative' : ''}`}
-        >
-          {formatMoney(calc.bufferKonto)}
+        <span className="plan-hero__eyebrow">Monatsplan</span>
+        <span className="plan-hero__label">Puffer nach Plan</span>
+        <span className={`plan-hero__value tnum${calc.buffer < 0 ? ' text-negative' : ''}`}>
+          {formatMoney(calc.buffer)}
         </span>
         <span className="plan-hero__formula tnum">{formula}</span>
-        <VerdictBanner tone={tone} situation={situation} />
+        <VerdictBanner tone={tone} calc={calc} />
       </Card>
 
       <PlanSection
         section="income"
-        items={month.income}
+        items={plan.income}
+        total={calc.income}
         title="Einnahmen"
-        hint="Gehalt, Nebenjob, Bargeld"
+        hint="Gehalt, Nebenjob"
         addLabel="Einnahme hinzufügen"
         placeholder="z. B. Gehalt"
-        showBar={cashEnabled}
       />
       <PlanSection
         section="fixed"
-        items={month.fixed}
+        items={plan.fixed}
+        total={calc.fixed}
         title="Feste Abzüge"
-        hint="Abos, Handy, Tanken: geht jeden Monat vom Konto"
+        hint="Abos, Handy, Tanken: geht jeden Monat ab"
         addLabel="Abzug hinzufügen"
         placeholder="z. B. Spotify"
-        showBar={false}
       />
       <PlanSection
         section="variable"
-        items={month.variable}
+        items={plan.variable}
+        total={calc.variable}
         title="Variable Ausgaben"
-        hint="Was diesen Monat sonst noch anfällt"
+        hint="Was sonst noch anfällt"
         addLabel="Ausgabe hinzufügen"
         placeholder="z. B. Lebensmittel"
-        showBar={cashEnabled}
       />
 
-      <SavingsCard calc={calc} cashEnabled={cashEnabled} />
-      <SituationCard
-        month={month}
-        calc={calc}
-        situation={situation}
-        tone={tone}
-        cashEnabled={cashEnabled}
-      />
+      <SavingsCard calc={calc} />
+      <SituationCard balance={plan.balance} calc={calc} tone={tone} />
     </div>
   )
 }

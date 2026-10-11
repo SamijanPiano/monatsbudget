@@ -1,4 +1,4 @@
-import { useBudgetStore, useCashEnabled } from '../../store/budgetStore'
+import { useBudgetStore } from '../../store/budgetStore'
 import { Card, SectionTitle } from '../ui/Card'
 import { formatMoney } from '../../lib/format'
 import { IconPlus } from '../ui/icons'
@@ -11,10 +11,11 @@ import { PlanItemRow } from '../plan/PlanItemRow'
 export function VariableCostsCard() {
   const month = useBudgetStore((s) => s.months[s.activeMonthId])
   const addItem = useBudgetStore((s) => s.addItem)
-  const cashEnabled = useCashEnabled()
+  const updateItem = useBudgetStore((s) => s.updateItem)
+  const removeItem = useBudgetStore((s) => s.removeItem)
 
   const items = month?.variable ?? []
-  const total = items.reduce((sum, it) => sum + it.konto + (cashEnabled ? it.bar : 0), 0)
+  const total = items.reduce((sum, it) => sum + it.konto, 0)
 
   return (
     <Card>
@@ -31,9 +32,16 @@ export function VariableCostsCard() {
             <PlanItemRow
               key={it.id}
               section="variable"
-              item={it}
-              showBar={cashEnabled}
+              label={it.label}
+              amount={it.konto}
               placeholder="z. B. Lebensmittel"
+              onChange={({ label, amount }) =>
+                updateItem('variable', it.id, {
+                  ...(label !== undefined && { label }),
+                  ...(amount !== undefined && { konto: amount }),
+                })
+              }
+              onRemove={() => removeItem('variable', it.id)}
             />
           ))}
         </div>

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
-import { useBudgetStore } from '../../store/budgetStore'
-import type { Month, MonthCalc, SituationCalc } from '../../types/budget'
-import type { VerdictTone } from '../../lib/plan'
+import { usePlanStore } from '../../store/planStore'
+import type { PlanCalc, VerdictTone } from '../../lib/plan'
 import { formatMoney } from '../../lib/format'
 import { Card, SectionTitle } from '../ui/Card'
 import { Money } from '../ui/Money'
@@ -10,7 +9,7 @@ import { EuroInput } from '../ui/EuroInput'
 interface LineProps {
   label: string
   value: number
-  tone?: 'konto' | 'bar' | 'muted' | 'default'
+  tone?: 'konto' | 'muted' | 'default'
   signed?: boolean
   strong?: boolean
 }
@@ -49,41 +48,23 @@ function Divider() {
   return <hr className="plan-divider" />
 }
 
-interface SavingsCardProps {
-  calc: MonthCalc
-  cashEnabled: boolean
-}
-
-export function SavingsCard({ calc, cashEnabled }: SavingsCardProps) {
-  const setSavings = useBudgetStore((s) => s.setSavings)
+export function SavingsCard({ calc }: { calc: PlanCalc }) {
+  const setSavings = usePlanStore((s) => s.setSavings)
 
   return (
     <Card as="section" className="plan-card">
       <SectionTitle title="Sparen" hint="Was nach Abzügen und Ausgaben übrig bleibt" />
       <div className="plan-lines">
-        <PlanLine label="Konto nach Abzügen & Ausgaben" value={calc.kontoAfterDeductions} signed />
-        {cashEnabled && (
-          <PlanLine label="Bar nach Ausgaben" value={calc.barAfterExpenses} signed />
-        )}
+        <PlanLine label="Nach Abzügen & Ausgaben" value={calc.afterExpenses} signed />
         <Divider />
         <PlanInputLine
-          label="Sparbetrag Konto"
-          hint={`max. ${formatMoney(calc.maxSaveKonto)}`}
-          value={calc.savingsKonto}
-          onCommit={(v) => setSavings('konto', v)}
+          label="Sparbetrag"
+          hint={`max. ${formatMoney(calc.maxSave)}`}
+          value={calc.savings}
+          onCommit={setSavings}
         />
-        {cashEnabled && (
-          <PlanInputLine
-            label="Sparbetrag Bar"
-            hint={`max. ${formatMoney(calc.maxSaveBar)}`}
-            value={calc.savingsBar}
-            onCommit={(v) => setSavings('bar', v)}
-          />
-        )}
         <Divider />
-        <PlanLine label="Puffer auf dem Konto" value={calc.bufferKonto} signed strong />
-        {cashEnabled && <PlanLine label="Bar frei verfügbar" value={calc.freeBar} signed strong />}
-        <PlanLine label="Gesamtersparnis diesen Monat" value={calc.totalSavings} tone="konto" />
+        <PlanLine label="Puffer nach Sparen" value={calc.buffer} signed strong />
       </div>
     </Card>
   )
@@ -96,63 +77,44 @@ const VERDICT_TITLE: Record<VerdictTone, string> = {
   unknown: 'Noch offen',
 }
 
-function verdictDetail(tone: VerdictTone, situation: SituationCalc): ReactNode {
+function verdictDetail(tone: VerdictTone, calc: PlanCalc): ReactNode {
   if (tone === 'unknown') return 'Trag deinen aktuellen Kontostand ein, dann rechnet die App es aus.'
-  if (tone === 'short') return <>Es fehlen <strong className="tnum">{formatMoney(situation.diff)}</strong>.</>
-  return <>Puffer: <strong className="tnum">{formatMoney(situation.diff)}</strong></>
+  const diff = formatMoney(Math.abs(calc.remaining))
+  if (tone === 'short') return <>Es fehlen <strong className="tnum">{diff}</strong>.</>
+  return <>Puffer: <strong className="tnum">{diff}</strong></>
 }
 
-export function VerdictBanner({ tone, situation }: { tone: VerdictTone; situation: SituationCalc }) {
+export function VerdictBanner({ tone, calc }: { tone: VerdictTone; calc: PlanCalc }) {
   return (
     <div className={`plan-verdict plan-verdict--${tone}`} role="status">
       <span className="plan-verdict__title">{VERDICT_TITLE[tone]}</span>
-      <span className="plan-verdict__detail">{verdictDetail(tone, situation)}</span>
+      <span className="plan-verdict__detail">{verdictDetail(tone, calc)}</span>
     </div>
   )
 }
 
 interface SituationCardProps {
-  month: Month
-  calc: MonthCalc
-  situation: SituationCalc
+  balance: number
+  calc: PlanCalc
   tone: VerdictTone
-  cashEnabled: boolean
 }
 
-export function SituationCard({ month, calc, situation, tone, cashEnabled }: SituationCardProps) {
-  const setCurrent = useBudgetStore((s) => s.setCurrent)
+export function SituationCard({ balance, calc, tone }: SituationCardProps) {
+  const setBalance = usePlanStore((s) => s.setBalance)
 
   return (
     <Card as="section" className="plan-card">
-      <SectionTitle title="Reicht es?" hint="Aktueller Stand gegen alles, was noch abgeht" />
+      <SectionTitle title="Reicht es?" hint="Aktueller Kontostand gegen alles, was noch abgeht" />
       <div className="plan-lines">
-        <PlanInputLine
-          label="Aktueller Kontostand"
-          value={month.currentKonto}
-          onCommit={(v) => setCurrent('konto', v)}
-        />
-        {cashEnabled && (
-          <PlanInputLine
-            label="Aktuelles Bargeld"
-            value={month.currentBar}
-            onCommit={(v) => setCurrent('bar', v)}
-          />
-        )}
+        <PlanInputLine label="Aktueller Kontostand" value={balance} onCommit={setBalance} />
         <Divider />
-        <PlanLine label="Feste Abzüge" value={calc.fixedTotal} tone="muted" />
-        <PlanLine label="Variable Ausgaben vom Konto" value={calc.variableKonto} tone="muted" />
-        {cashEnabled && (
-          <>
-            <PlanLine label="Bargeld deckt davon" value={situation.barCovers} tone="bar" />
-            <PlanLine label="Rest Bar-Ausgaben zahlt das Konto" value={situation.restBarToKonto} tone="muted" />
-          </>
-        )}
-        <PlanLine label="Konto braucht insgesamt" value={situation.kontoNeededTotal} strong />
+        <PlanLine label="Feste Abzüge" value={calc.fixed} tone="muted" />
+        <PlanLine label="Variable Ausgaben" value={calc.variable} tone="muted" />
+        <PlanLine label="Geht noch ab" value={calc.needed} strong />
         <Divider />
-        <PlanLine label="Konto danach" value={situation.kontoRemaining} signed strong />
-        {cashEnabled && <PlanLine label="Bargeld danach" value={situation.barRemaining} signed />}
+        <PlanLine label="Konto danach" value={calc.remaining} signed strong />
       </div>
-      <VerdictBanner tone={tone} situation={situation} />
+      <VerdictBanner tone={tone} calc={calc} />
     </Card>
   )
 }

@@ -49,4 +49,4 @@ export function bottomActiveFor(tab: TabId): TabId {
 }
 
 /** Auf welchen Tabs der Monats-Umschalter im Kopf sinnvoll ist. */
-export const BUDGET_TABS: TabId[] = ['history', 'analyse', 'budgets', 'plan']
+export const BUDGET_TABS: TabId[] = ['history', 'analyse', 'budgets']

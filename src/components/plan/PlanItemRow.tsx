@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useBudgetStore, type Section } from '../../store/budgetStore'
 import { useLearningStore } from '../../store/learningStore'
-import type { LineItem } from '../../types/budget'
+import type { PlanSection } from '../../lib/plan'
 import { formatMoney } from '../../lib/format'
 import { IconTrash } from '../ui/icons'
 import { EuroInput } from '../ui/EuroInput'
@@ -11,28 +10,31 @@ import { itemCreatedEvent } from '../../lib/learning/events'
 import { SuggestionBadge } from '../learning/SuggestionBadge'
 
 interface PlanItemRowProps {
-  section: Section
-  item: LineItem
-  /** Bar-Spalte anzeigen (Bar-Kanal aktiv und Bereich kennt Bargeld). */
-  showBar: boolean
+  section: PlanSection
+  label: string
+  /** Betrag in Euro */
+  amount: number
   placeholder: string
+  onChange: (patch: { label?: string; amount?: number }) => void
+  onRemove: () => void
 }
 
 /**
- * Eine Zeile im Monatsplan: Bezeichnung, Konto-Betrag, optional Bar-Betrag.
- * Beträge sind Euro-basiert (LineItem). Ein Betragsvorschlag aus früheren
- * gleichnamigen Posten erscheint, solange der Konto-Betrag leer ist.
+ * Eine Zeile: Bezeichnung und Betrag. Ein Betragsvorschlag aus früheren
+ * gleichnamigen Posten erscheint, solange der Betrag leer ist.
  */
-export function PlanItemRow({ section, item, showBar, placeholder }: PlanItemRowProps) {
-  const updateItem = useBudgetStore((s) => s.updateItem)
-  const removeItem = useBudgetStore((s) => s.removeItem)
-  const [label, setLabel] = useState(item.label)
+export function PlanItemRow({
+  section,
+  label,
+  amount,
+  placeholder,
+  onChange,
+  onRemove,
+}: PlanItemRowProps) {
+  const [draftLabel, setDraftLabel] = useState(label)
 
   // Stabile ctx-Identität, damit useSuggestion nur bei echten Änderungen neu rechnet.
-  const suggestionCtx: AmountContext = useMemo(
-    () => ({ labelKey: item.label, section }),
-    [item.label, section],
-  )
+  const suggestionCtx: AmountContext = useMemo(() => ({ labelKey: label, section }), [label, section])
   const { top, mode, accept, dismiss } = useSuggestion({
     predictor: amountPredictor,
     ctx: suggestionCtx,
@@ -40,57 +42,45 @@ export function PlanItemRow({ section, item, showBar, placeholder }: PlanItemRow
   })
 
   const commitLabel = () => {
-    const trimmed = label.trim()
-    if (trimmed !== item.label) updateItem(section, item.id, { label: trimmed })
+    const trimmed = draftLabel.trim()
+    if (trimmed !== label) onChange({ label: trimmed })
   }
 
-  // Betrag committen (in Euro) und als Cent-Signal für die Lern-Schicht ablegen.
-  const commitKonto = (euros: number) => {
-    updateItem(section, item.id, { konto: euros })
+  // Betrag committen und als Cent-Signal für die Lern-Schicht ablegen.
+  const commitAmount = (euros: number) => {
+    onChange({ amount: euros })
     const cents = Math.round(euros * 100)
-    if (item.label.trim() !== '' && cents !== 0) {
-      useLearningStore.getState().record(itemCreatedEvent(item, section, cents, null, false))
+    if (label.trim() !== '' && cents !== 0) {
+      useLearningStore.getState().record(itemCreatedEvent({ label }, section, cents, null, false))
     }
   }
 
   const applySuggestion = () => {
     if (!top) return
-    updateItem(section, item.id, { konto: top.value / 100 })
+    onChange({ amount: top.value / 100 })
     accept(top.value)
   }
 
-  const showSuggestion =
-    item.konto === 0 && item.label.trim() !== '' && mode !== 'none' && top !== null
-  const name = item.label || placeholder
+  const showSuggestion = amount === 0 && label.trim() !== '' && mode !== 'none' && top !== null
+  const name = label || placeholder
 
   return (
     <div className="varcost-row-wrap">
-      <div className={`plan-row${showBar ? ' plan-row--dual' : ''}`}>
+      <div className="plan-row">
         <input
-          className="varcost-name plan-row__name"
-          value={label}
+          className="varcost-name"
+          value={draftLabel}
           aria-label="Bezeichnung"
           placeholder={placeholder}
-          onChange={(e) => setLabel(e.target.value)}
+          onChange={(e) => setDraftLabel(e.target.value)}
           onBlur={commitLabel}
         />
-        <div className="plan-row__konto">
-          <EuroInput value={item.konto} ariaLabel={`Konto-Betrag ${name}`} onCommit={commitKonto} />
-        </div>
-        {showBar && (
-          <div className="plan-row__bar">
-            <EuroInput
-              value={item.bar}
-              ariaLabel={`Bar-Betrag ${name}`}
-              onCommit={(euros) => updateItem(section, item.id, { bar: euros })}
-            />
-          </div>
-        )}
+        <EuroInput value={amount} ariaLabel={`Betrag ${name}`} onCommit={commitAmount} />
         <button
           type="button"
-          className="varcost-del plan-row__del"
+          className="varcost-del"
           aria-label={`${name} löschen`}
-          onClick={() => removeItem(section, item.id)}
+          onClick={onRemove}
         >
           <IconTrash size={16} />
         </button>

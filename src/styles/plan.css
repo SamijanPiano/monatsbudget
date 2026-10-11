@@ -38,68 +38,12 @@
 /* ── Postenzeilen ────────────────────────────────────────────────────────── */
 .plan-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 112px 34px;
-  grid-template-areas: 'name konto del';
+  grid-template-columns: minmax(0, 1fr) 120px 34px;
   align-items: center;
   gap: var(--space-2);
 }
-.plan-row--dual {
-  grid-template-columns: minmax(0, 1fr) 104px 104px 34px;
-  grid-template-areas: 'name konto bar del';
-}
-.plan-row__name { grid-area: name; }
-.plan-row__konto { grid-area: konto; }
-.plan-row__bar { grid-area: bar; }
-.plan-row__del { grid-area: del; }
 .plan-row .num-input {
   width: 100%;
-}
-
-.plan-row--head {
-  margin-top: var(--space-3);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-.plan-chan {
-  justify-self: end;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.35rem;
-  padding-right: 1.4rem;
-}
-.plan-chan::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-full);
-  background: currentColor;
-}
-.plan-chan--konto { color: var(--konto); }
-.plan-chan--bar { color: var(--bar); }
-
-/* Schmal + zwei Kanäle: Name oben, Beträge darunter. */
-@media (max-width: 480px) {
-  .plan-row--dual {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px;
-    grid-template-areas:
-      'name name del'
-      'konto bar .';
-    row-gap: var(--space-1);
-  }
-  .plan-row--dual.plan-row--head {
-    grid-template-areas: 'konto bar del';
-  }
-  .plan-row--dual.plan-row--head .plan-row__name {
-    display: none;
-  }
-  .varcost-list .varcost-row-wrap:has(.plan-row--dual) + .varcost-row-wrap {
-    padding-top: var(--space-1);
-    border-top: 1px solid var(--border);
-  }
 }
 
 .plan-total {
