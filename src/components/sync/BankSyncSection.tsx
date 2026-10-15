@@ -11,6 +11,7 @@ import { toParsed, pendingSummary } from '../../lib/sync'
 import { formatCents } from '../../lib/format'
 import { Card, SectionTitle } from '../ui/Card'
 import { BankPicker } from './BankPicker'
+import { logActivity } from '../../store/activityStore'
 
 type Status = { tone: 'ok' | 'error' | 'info'; text: string }
 
@@ -88,7 +89,7 @@ export function BankSyncSection() {
         const pending = pendingSummary(rows)
         pendingCount += pending.count
         pendingCents += pending.amountCents
-        total += importParsed(toParsed(rows))
+        total += importParsed(toParsed(rows), undefined, 'sync')
       }
       // Vorgemerkte Umsätze werden nicht importiert, aber gemerkt und angezeigt.
       setBankPending(
@@ -104,6 +105,7 @@ export function BankSyncSection() {
             }) noch nicht abgebucht.`
           : ''
       setStatus({ tone: 'ok', text: baseText + pendingText })
+      logActivity('sync', `Bank synchronisiert: ${baseText}${pendingText}`)
     } catch (e) {
       // Veralteten Pending-Stand nicht stehen lassen — lieber nichts anzeigen
       // als einen falschen Betrag aus einem früheren Sync.

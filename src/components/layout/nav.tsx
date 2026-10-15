@@ -16,11 +16,9 @@ export type TabId =
   | 'ai'
   // Sekundär-Views, erreichbar über den „Mehr"-Hub:
   | 'plan'
-  | 'budgets'
   | 'berichte'
   | 'vermoegen'
   | 'vertraege'
-  | 'zahlungen'
 
 export interface TabDef {
   id: TabId
@@ -39,7 +37,7 @@ export const TABS: TabDef[] = [
  * Sekundär-Views und ausgelagerte Features mappen auf „Mehr" in der Bottom-Nav.
  */
 const SECONDARY_TABS: TabId[] = [
-  'plan', 'budgets', 'berichte', 'vermoegen', 'vertraege', 'zahlungen',
+  'plan', 'berichte', 'vermoegen', 'vertraege',
   'history', 'ai', 'schulden',
 ]
 
@@ -49,4 +47,4 @@ export function bottomActiveFor(tab: TabId): TabId {
 }
 
 /** Auf welchen Tabs der Monats-Umschalter im Kopf sinnvoll ist. */
-export const BUDGET_TABS: TabId[] = ['history', 'analyse', 'budgets']
+export const BUDGET_TABS: TabId[] = ['history', 'analyse']

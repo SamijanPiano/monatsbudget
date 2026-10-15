@@ -24,3 +24,13 @@ ALLOWED_ORIGIN = "https://samijanpiano.github.io"
 binding = "SESSIONS"
 id = "b68721c20eee4add9f90b9e592e8944b"
 preview_id = "04f6c724887142a7852ba089d190f335"
+
+# Gemeinsamer App-Stand aller Geräte + Einmal-Codes zum Koppeln.
+# Durable Object statt KV: stark konsistent, Schreiben mit Revisionsvergleich ist atomar.
+[[durable_objects.bindings]]
+name = "STATE"
+class_name = "StateStore"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["StateStore"]

@@ -65,4 +65,35 @@ describe('buildImportedTransactions', () => {
   test('leere Eingabe -> leeres Ergebnis', () => {
     expect(buildImportedTransactions([], { accountId: 'a', categories: [], existing: [] })).toEqual([])
   })
+
+  test('überspringt Buchungen mit bekannter Bank-Referenz und merkt sich Referenz und Quelle', () => {
+    const existing = [{ hash: 'h-alt', bankRef: 'REF-1' }]
+    const out = buildImportedTransactions(
+      [p({ hash: 'h-neu-text', bankRef: 'REF-1' }), p({ hash: 'h-anders', bankRef: 'REF-2' })],
+      { accountId: 'acc-1', categories: defaultCategories(), existing, source: 'sync' },
+    )
+    expect(out).toHaveLength(1)
+    expect(out[0].bankRef).toBe('REF-2')
+    expect(out[0].source).toBe('sync')
+  })
+
+  test('gleiche Bank-Referenz auf einem anderen Konto ist eine neue Buchung', () => {
+    const existing = [{ hash: 'h-alt', bankRef: 'REF-1', accountId: 'acc-2' }]
+    const out = buildImportedTransactions([p({ hash: 'h-neu', bankRef: 'REF-1' })], {
+      accountId: 'acc-1',
+      categories: defaultCategories(),
+      existing,
+    })
+    expect(out).toHaveLength(1)
+    expect(out[0].bankRef).toBe('REF-1')
+  })
+
+  test('Doppelte im selben Batch bleiben draußen', () => {
+    const out = buildImportedTransactions([p(), p()], {
+      accountId: 'acc-1',
+      categories: defaultCategories(),
+      existing: [],
+    })
+    expect(out).toHaveLength(1)
+  })
 })

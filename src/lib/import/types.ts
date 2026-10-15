@@ -14,4 +14,6 @@ export interface ParsedTransaction {
   purpose: string
   /** Stabiler Dedup-Schlüssel für idempotenten (Re-)Import. */
   hash: string
+  /** Referenz der Bank (nur Live-Sync). Bleibt gleich, auch wenn sich Text oder Datum ändern. */
+  bankRef?: string
 }

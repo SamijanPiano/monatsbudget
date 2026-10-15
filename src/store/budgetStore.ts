@@ -13,14 +13,16 @@ import type {
   LineItem,
   Month,
   Settings,
+  TransactionSource,
 } from '../types/budget'
 import { createId } from '../lib/id'
 import { DEFAULT_SETTINGS, copyMonth, createBlankMonth, currentMonthId } from '../lib/seed'
 import { migrateBudgetState } from './migrate'
-import type { OnboardingResult } from '../lib/onboarding'
 import type { ParsedTransaction } from '../lib/import/types'
 import { buildImportedTransactions } from '../lib/ingest'
 import { detectRecurring } from '../lib/recurring'
+import { logActivity } from './activityStore'
+import { formatCents } from '../lib/format'
 import { contractsFromRecurring } from '../lib/contracts'
 import {
   learnRule,
@@ -37,6 +39,8 @@ import { categoryAssignedEvent } from '../lib/learning/events'
 export type Section = 'income' | 'fixed' | 'variable'
 
 const STORAGE_KEY = 'monatsbudget-v1'
+/** So viele gelöschte Buchungs-IDs merkt sich die App für den Geräte-Abgleich. */
+const MAX_TOMBSTONES = 5000
 
 const DEFAULT_LABELS: Record<Section, string> = {
   income: 'Einnahme',
@@ -56,8 +60,6 @@ interface BudgetActions {
   setCurrent: (channel: 'konto' | 'bar', value: number) => void
   updateSettings: (patch: Partial<Settings>) => void
   setCashEnabled: (value: boolean) => void
-  completeOnboarding: (result: OnboardingResult) => void
-  restartOnboarding: () => void
   addGoal: (goal: Goal) => void
   updateGoal: (id: string, patch: Partial<Goal>) => void
   removeGoal: (id: string) => void
@@ -68,8 +70,12 @@ interface BudgetActions {
       >,
   ) => void
   // Transaktions-Schicht (v3)
-  importParsed: (parsed: ParsedTransaction[], accountId?: string) => number
+  importParsed: (parsed: ParsedTransaction[], accountId?: string, source?: TransactionSource) => number
   setTransactionCategory: (txId: string, categoryId: string | null) => void
+  /** Löscht Buchungen endgültig (z. B. bestätigte Duplikate). */
+  removeTransactions: (ids: string[]) => void
+  /** Merkt sich ein Paar als „kein Duplikat", damit es nicht wieder vorgeschlagen wird. */
+  dismissDuplicate: (key: string) => void
   /** Ordnet alle noch unkategorisierten Buchungen der „Sonstiges"-Kategorie zu. */
   backfillCategories: () => void
   /**
@@ -105,7 +111,8 @@ function initialState(): BudgetState {
     months: { [id]: createBlankMonth(id) },
     activeMonthId: id,
     settings: { ...DEFAULT_SETTINGS },
-    profile: { onboarded: false, cashEnabled: false, goals: [] },
+    // Persönliche App ohne Einrichtungsassistent: gilt immer als eingerichtet.
+    profile: { onboarded: true, cashEnabled: false, goals: [] },
     transactions: [],
     categories: defaultCategories(),
     accounts: [
@@ -127,20 +134,6 @@ function patchActiveMonth(
   return {
     months: { ...state.months, [state.activeMonthId]: update(current) },
   }
-}
-
-/** Schreibt die Onboarding-Schnellstart-Werte in den aktiven Monat (immutable). */
-function applyQuickStart(month: Month, result: OnboardingResult): Month {
-  if (result.income <= 0 && result.expenses.length === 0) return month
-  const income: LineItem[] =
-    result.income > 0
-      ? [{ id: createId(), label: 'Einkommen', konto: result.income, bar: 0 }]
-      : month.income
-  const variable: LineItem[] =
-    result.expenses.length > 0
-      ? result.expenses.map((e) => ({ id: createId(), label: e.label, konto: e.amount, bar: 0 }))
-      : month.variable
-  return { ...month, income, variable }
 }
 
 export const useBudgetStore = create<BudgetStore>()(
@@ -251,25 +244,6 @@ export const useBudgetStore = create<BudgetStore>()(
           return { accounts, profile: { ...state.profile, cashEnabled: value } }
         }),
 
-      completeOnboarding: (result) =>
-        set((state) => {
-          const id = state.activeMonthId
-          const current = state.months[id]
-          const month = current ? applyQuickStart(current, result) : current
-          return {
-            profile: {
-              ...state.profile,
-              onboarded: true,
-              cashEnabled: result.cashEnabled,
-              goals: result.goals,
-            },
-            months: month ? { ...state.months, [id]: month } : state.months,
-          }
-        }),
-
-      restartOnboarding: () =>
-        set((state) => ({ profile: { ...state.profile, onboarded: false } })),
-
       addGoal: (goal) =>
         set((state) => ({ profile: { ...state.profile, goals: [...state.profile.goals, goal] } })),
 
@@ -305,7 +279,7 @@ export const useBudgetStore = create<BudgetStore>()(
         useLearningStore.getState().clear()
       },
 
-      importParsed: (parsed, accountId) => {
+      importParsed: (parsed, accountId, source) => {
         let count = 0
         set((state) => {
           const categories =
@@ -317,6 +291,7 @@ export const useBudgetStore = create<BudgetStore>()(
             accountId: accId,
             categories,
             existing: state.transactions,
+            source,
           })
           count = news.length
           if (news.length === 0 && categories === state.categories) return {}
@@ -330,6 +305,10 @@ export const useBudgetStore = create<BudgetStore>()(
 
       setTransactionCategory: (txId, categoryId) => {
         const tx = get().transactions.find((t) => t.id === txId)
+        if (tx) {
+          const label = get().categories.find((c) => c.id === categoryId)?.label ?? 'keine'
+          logActivity('kategorie', `${tx.counterparty || 'Buchung'} → Kategorie ${label}`)
+        }
         set((state) => {
           if (!tx) return {}
           const transactions = state.transactions.map((t) =>
@@ -349,6 +328,28 @@ export const useBudgetStore = create<BudgetStore>()(
           useLearningStore.getState().record(categoryAssignedEvent(tx, categoryId, 'manual'))
         }
       },
+
+      removeTransactions: (ids) =>
+        set((state) => {
+          const drop = new Set(ids)
+          for (const t of state.transactions) {
+            if (drop.has(t.id)) {
+              logActivity('gelöscht', `Buchung gelöscht: ${t.counterparty || 'ohne Empfänger'} ${formatCents(t.amount)} vom ${t.date}`)
+            }
+          }
+          const transactions = state.transactions.filter((t) => !drop.has(t.id))
+          if (transactions.length === state.transactions.length) return {}
+          const deletedTransactionIds = [...(state.deletedTransactionIds ?? []), ...ids].slice(-MAX_TOMBSTONES)
+          return { transactions, recurringRules: detectRecurring(transactions), deletedTransactionIds }
+        }),
+
+      dismissDuplicate: (key) =>
+        set((state) => {
+          const current = state.dismissedDuplicates ?? []
+          if (current.includes(key)) return {}
+          logActivity('duplikat', 'Paar als „kein Duplikat" markiert')
+          return { dismissedDuplicates: [...current, key] }
+        }),
 
       backfillCategories: () =>
         set((state) => {
@@ -456,11 +457,13 @@ export const useBudgetStore = create<BudgetStore>()(
         set((state) => ({ contracts: state.contracts.filter((c) => c.id !== id) })),
 
       markContractCanceled: (id) =>
-        set((state) => ({
-          contracts: state.contracts.map((c) =>
-            c.id === id ? { ...c, status: 'canceled' } : c,
-          ),
-        })),
+        set((state) => {
+          const c = state.contracts.find((x) => x.id === id)
+          if (c) logActivity('vertrag', `Vertrag als gekündigt markiert: ${c.label}`)
+          return {
+            contracts: state.contracts.map((x) => (x.id === id ? { ...x, status: 'canceled' as const } : x)),
+          }
+        }),
 
       syncContractsFromRecurring: () =>
         set((state) => ({

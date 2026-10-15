@@ -162,6 +162,28 @@ describe('normalizeTransaction', () => {
     });
   });
 
+  it('passes the bank reference through as bankRef (entry_reference first)', () => {
+    const tx: EbTransaction = {
+      transaction_amount: { amount: '9.99' },
+      credit_debit_indicator: 'DBIT',
+      booking_date: '2026-06-03',
+      entry_reference: 'REF-123',
+      transaction_id: 'TX-9',
+    };
+    expect(normalizeTransaction(tx)?.bankRef).toBe('REF-123');
+    expect(normalizeTransaction({ ...tx, entry_reference: null })?.bankRef).toBe('TX-9');
+  });
+
+  it('omits bankRef when the bank sends no reference', () => {
+    const tx: EbTransaction = {
+      transaction_amount: { amount: '9.99' },
+      credit_debit_indicator: 'DBIT',
+      booking_date: '2026-06-03',
+      entry_reference: '  ',
+    };
+    expect(normalizeTransaction(tx)).not.toHaveProperty('bankRef');
+  });
+
   it('handles remittance_information as a plain string', () => {
     const tx: EbTransaction = {
       transaction_amount: { amount: '5.00' },

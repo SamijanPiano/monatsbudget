@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { calcPlan, emptyPlan, planFromMonth, verdictTone, type Plan, type PlanItem } from './plan'
+import {
+  calcPlan,
+  emptyPlan,
+  ensurePlanRoles,
+  learnCounterparty,
+  planFromMonth,
+  setRole,
+  verdictTone,
+  type Plan,
+  type PlanItem,
+} from './plan'
 import type { Month } from '../types/budget'
 
 function item(label: string, amount: number): PlanItem {
@@ -111,5 +121,66 @@ describe('verdictTone', () => {
 
   it('genau aufgebraucht (0 € übrig) reicht noch, wie in der Excel', () => {
     expect(tone(excelPlan({ balance: 506.2 }))).not.toBe('short')
+  })
+})
+
+describe('ensurePlanRoles', () => {
+  it('markiert einen vorhandenen „Täglicher Verbrauch"-Posten als Sammelposten und das erste Einkommen als Gehalt', () => {
+    const plan = {
+      ...emptyPlan(),
+      income: [{ id: 'g', label: 'Gehalt', amount: 990 }, { id: 'n', label: 'Nebenjob', amount: 100 }],
+      variable: [{ id: 'v', label: 'Täglicher Verbrauch', amount: 220 }],
+    }
+    const out = ensurePlanRoles(plan)
+    expect(out.variable[0].catchAll).toBe(true)
+    expect(out.income[0].salary).toBe(true)
+    expect(out.income[1].salary).toBeUndefined()
+  })
+
+  it('legt den Sammelposten an, wenn keiner existiert', () => {
+    const out = ensurePlanRoles(emptyPlan())
+    expect(out.variable).toHaveLength(1)
+    expect(out.variable[0]).toMatchObject({ label: 'Täglicher Verbrauch', amount: 0, catchAll: true })
+  })
+
+  it('lässt bestehende Rollen unverändert', () => {
+    const plan = ensurePlanRoles(emptyPlan())
+    expect(ensurePlanRoles(plan)).toEqual(plan)
+  })
+})
+
+describe('learnCounterparty', () => {
+  it('hängt den Empfänger am Ziel an und entfernt ihn überall sonst', () => {
+    const plan = {
+      ...emptyPlan(),
+      fixed: [{ id: 'a', label: 'A', amount: 0, counterparties: ['rewe'] }],
+      variable: [{ id: 'b', label: 'B', amount: 0 }],
+    }
+    const out = learnCounterparty(plan, 'rewe', 'b')
+    expect(out.fixed[0].counterparties).toEqual([])
+    expect(out.variable[0].counterparties).toEqual(['rewe'])
+  })
+
+  it('Sonderziel: Empfänger wird nur entfernt', () => {
+    const plan = { ...emptyPlan(), variable: [{ id: 'b', label: 'B', amount: 0, counterparties: ['rewe'] }] }
+    expect(learnCounterparty(plan, 'rewe', 'excluded').variable[0].counterparties).toEqual([])
+  })
+})
+
+describe('setRole', () => {
+  it('genau ein Posten trägt die Rolle', () => {
+    const plan = ensurePlanRoles({
+      ...emptyPlan(),
+      variable: [{ id: 'x', label: 'Essen', amount: 0 }],
+    })
+    const out = setRole(plan, 'catchAll', 'x')
+    expect(out.variable.filter((i) => i.catchAll).map((i) => i.id)).toEqual(['x'])
+  })
+})
+
+describe('learnCounterparty ohne Empfänger', () => {
+  it('lernt nichts, wenn der Empfänger leer ist', () => {
+    const plan = { ...emptyPlan(), variable: [{ id: 'b', label: 'B', amount: 0 }] }
+    expect(learnCounterparty(plan, '', 'b')).toBe(plan)
   })
 })

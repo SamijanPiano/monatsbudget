@@ -2,7 +2,7 @@
 // Wandelt geparste Bank-Buchungen in vollwertige Transaktionen um und überspringt
 // dabei bereits vorhandene (idempotenter Re-Import).
 
-import type { Category, Transaction } from '../types/budget'
+import type { Category, Transaction, TransactionSource } from '../types/budget'
 import type { ParsedTransaction } from './import/types'
 import { mergeNew } from './import/dedup'
 import { categorize } from './categorize'
@@ -11,7 +11,9 @@ import { createId } from './id'
 interface IngestOptions {
   accountId: string
   categories: Category[]
-  existing: Pick<Transaction, 'hash'>[]
+  existing: (Pick<Transaction, 'hash' | 'bankRef'> & { accountId?: string })[]
+  /** Herkunft der neuen Buchungen (Standard: Datei-Import). */
+  source?: TransactionSource
 }
 
 /**
@@ -23,7 +25,15 @@ export function buildImportedTransactions(
   opts: IngestOptions,
 ): Transaction[] {
   const existingHashes = new Set(opts.existing.map((t) => t.hash))
-  const fresh = mergeNew(existingHashes, parsed)
+  // Referenzen nur innerhalb desselben Kontos vergleichen: manche Banken
+  // vergeben Zähler, die sich zwischen Konten wiederholen.
+  const scoped = (ref: string) => `${opts.accountId}:${ref}`
+  const existingRefs = opts.existing.flatMap((t) =>
+    t.bankRef && (t.accountId === undefined || t.accountId === opts.accountId) ? [scoped(t.bankRef)] : [],
+  )
+  const incoming = parsed.map((p) => (p.bankRef ? { ...p, bankRef: scoped(p.bankRef) } : p))
+  const kept = new Set(mergeNew(existingHashes, incoming, existingRefs))
+  const fresh = parsed.filter((_, i) => kept.has(incoming[i]))
   return fresh.map((p) => ({
     id: createId(),
     date: p.date,
@@ -32,7 +42,8 @@ export function buildImportedTransactions(
     purpose: p.purpose,
     categoryId: categorize({ counterparty: p.counterparty, purpose: p.purpose }, opts.categories),
     accountId: opts.accountId,
-    source: 'import' as const,
+    source: opts.source ?? 'import',
     hash: p.hash,
+    ...(p.bankRef ? { bankRef: p.bankRef } : {}),
   }))
 }

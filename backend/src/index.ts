@@ -8,8 +8,11 @@
  *   GET  /api/callback?code=&state=                                       -> 302 redirect
  *   GET  /api/accounts                                                    -> [account]
  *   GET  /api/transactions?accountId=&dateFrom=YYYY-MM-DD                 -> [transaction]
- *   POST /api/payments/initiate { payment, redirectUrl }                 -> { authUrl, paymentId }
- *   GET  /api/payments/status?paymentId=                                 -> { status }
+ *   POST /api/mirror          { snapshot, events }                        -> { ok, events }
+ *   GET  /api/state                                                      -> { revision, updatedAt, doc|null }
+ *   PUT  /api/state           { baseRevision, deviceId, doc }            -> { revision } | 409 { revision, doc }
+ *   POST /api/pair                                                       -> { code, expiresAt }
+ *   POST /api/pair/redeem     { code }   (ohne Token, Einmal-Code)        -> { token }
  *
  * Single-user design: one shared X-App-Token, one stored bank session in KV.
  */
@@ -27,6 +30,10 @@ import {
   sanitizePromptField,
   checkRateLimit,
 } from './security.js';
+import { mergeEvents, parseMirrorBody, type ActivityEvent } from './mirror.js';
+import { parseStatePut } from './state.js';
+
+export { StateStore } from './stateObject.js';
 
 export interface Env {
   SESSIONS: KVNamespace;
@@ -35,10 +42,15 @@ export interface Env {
   APP_TOKEN: string;
   ALLOWED_ORIGIN: string;
   ANTHROPIC_API_KEY: string;
+  STATE: DurableObjectNamespace;
 }
 
 // KV keys
 const KV_SESSION = 'session'; // { sessionId, accountUids }
+const KV_MIRROR_SNAPSHOT = 'mirror:snapshot'; // { receivedAt, snapshot } — von Claude per wrangler gelesen
+const KV_MIRROR_EVENTS = 'mirror:events'; // ActivityEvent[]
+// Kopplung: höchstens so viele Einlöseversuche je Minute (Codes sind 128 Bit, das ist nur Schonung).
+const PAIR_REDEEM_PER_MINUTE = 10;
 const KV_PENDING_PREFIX = 'pending:'; // pending:<state> -> { redirectUrl }
 
 // Access window for a consent (Enable Banking allows ~90 days for AIS).
@@ -73,7 +85,7 @@ interface PendingConsent {
 function corsHeaders(env: Env): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-App-Token',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
@@ -267,74 +279,82 @@ async function handleTransactions(url: URL, env: Env): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
-// Payment Initiation (PIS) — SEPA-Überweisung
-//
-// Sicherheit: keine Zahlung wird ohne SCA des Nutzers ausgeführt; das Backend
-// erhält nur den (lizenzierten) Auslöse-Auftrag und gibt die Bank-URL zurück.
-// Sandbox-first: erst nach erfolgreichem Sandbox-Test produktiv schalten.
+// Gemeinsamer Stand aller Geräte
 // ---------------------------------------------------------------------------
 
-interface PaymentBody {
-  payment?: {
-    creditorName?: unknown;
-    creditorIban?: unknown;
-    amount?: unknown;
-    currency?: unknown;
-    remittance?: unknown;
-  };
-  redirectUrl?: unknown;
+/** Das eine Durable Object, das den Stand hält. */
+function stateStub(env: Env): DurableObjectStub {
+  return env.STATE.get(env.STATE.idFromName('main'));
 }
 
-async function handlePaymentInitiate(request: Request, env: Env): Promise<Response> {
-  let body: PaymentBody;
+async function forward(env: Env, path: string, body?: unknown): Promise<Response> {
+  const res = await stateStub(env).fetch(`https://state${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return new Response(res.body, { status: res.status, headers: { 'Content-Type': 'application/json', ...corsHeaders(env) } });
+}
+
+async function handleGetState(env: Env): Promise<Response> {
+  return forward(env, '/get');
+}
+
+async function handlePutState(request: Request, env: Env): Promise<Response> {
+  const put = parseStatePut(await request.text());
+  if (!put.ok) return errorJson(put.error, env, 400);
+  return forward(env, '/put', { baseRevision: put.baseRevision, deviceId: put.deviceId, doc: put.doc });
+}
+
+async function handlePairCreate(env: Env): Promise<Response> {
+  return forward(env, '/pair/create', {});
+}
+
+/** Einmal-Code gegen den Zugang tauschen. Läuft ohne Token (das neue Gerät hat noch keinen). */
+async function handlePairRedeem(request: Request, env: Env): Promise<Response> {
+  const limit = await checkRateLimit(env.SESSIONS, 'pair:redeem', PAIR_REDEEM_PER_MINUTE, MINUTE_SECONDS);
+  if (!limit.allowed) return errorJson('Too many attempts', env, 429);
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return errorJson('Invalid JSON', env, 400);
   }
-
-  const p = body.payment;
-  const redirectUrl = body.redirectUrl;
-  if (
-    !p ||
-    typeof p.creditorName !== 'string' ||
-    typeof p.creditorIban !== 'string' ||
-    typeof p.amount !== 'number' ||
-    typeof redirectUrl !== 'string'
-  ) {
-    return errorJson('Missing or invalid payment fields', env, 400);
-  }
-  if (!Number.isInteger(p.amount) || p.amount <= 0) {
-    return errorJson('Amount must be a positive integer (cents)', env, 400);
-  }
-
-  const session = await loadSession(env);
-  if (!session) return errorJson('No bank session. Connect a bank first.', env, 409);
-  if (!session.aspsp) {
-    return errorJson('Connected bank unknown — reconnect to enable payments.', env, 409);
-  }
-
-  const amountStr = (p.amount / 100).toFixed(2); // Cent -> "25.00"
-  const state = crypto.randomUUID();
-  const resp = await client(env).initiatePayment({
-    aspsp: session.aspsp,
-    state,
-    redirectUrl,
-    creditorName: p.creditorName,
-    creditorIban: p.creditorIban,
-    amount: amountStr,
-    currency: typeof p.currency === 'string' ? p.currency : 'EUR',
-    remittance: typeof p.remittance === 'string' ? p.remittance : '',
+  const res = await stateStub(env).fetch('https://state/pair/redeem', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
-
-  return json({ authUrl: resp.url ?? '', paymentId: resp.payment_id ?? '' }, env);
+  if (!res.ok) return errorJson('Code ungültig oder abgelaufen', env, 403);
+  return json({ token: env.APP_TOKEN }, env);
 }
 
-async function handlePaymentStatus(url: URL, env: Env): Promise<Response> {
-  const paymentId = url.searchParams.get('paymentId');
-  if (!paymentId) return errorJson('Missing paymentId', env, 400);
-  const resp = await client(env).getPaymentStatus(paymentId);
-  return json({ status: resp.payment_status ?? 'unknown' }, env);
+// ---------------------------------------------------------------------------
+// Spiegel für Claude: Schnappschuss + Aktionsprotokoll
+// ---------------------------------------------------------------------------
+
+async function handleMirror(request: Request, env: Env): Promise<Response> {
+  const parsed = parseMirrorBody(await request.text());
+  if (!parsed.ok) return errorJson(parsed.error, env, 400);
+
+  const existingRaw = await env.SESSIONS.get(KV_MIRROR_EVENTS);
+  let existing: ActivityEvent[] = [];
+  try {
+    existing = existingRaw ? (JSON.parse(existingRaw) as ActivityEvent[]) : [];
+  } catch {
+    existing = [];
+  }
+  const events = mergeEvents(existing, parsed.events);
+
+  await env.SESSIONS.put(
+    KV_MIRROR_SNAPSHOT,
+    JSON.stringify({ receivedAt: new Date().toISOString(), snapshot: parsed.snapshot }),
+  );
+  // KV-Schreibkontingent schonen: Protokoll nur schreiben, wenn wirklich Neues kam.
+  if (events.length !== existing.length || parsed.events.length > 0) {
+    await env.SESSIONS.put(KV_MIRROR_EVENTS, JSON.stringify(events));
+  }
+  return json({ ok: true, events: events.length }, env);
 }
 
 // ---------------------------------------------------------------------------
@@ -492,6 +512,15 @@ export default {
       }
     }
 
+    // Kopplung: das neue Gerät hat noch keinen Token, nur den Einmal-Code.
+    if (url.pathname === '/api/pair/redeem' && request.method === 'POST') {
+      try {
+        return await handlePairRedeem(request, env);
+      } catch {
+        return errorJson('Internal error', env, 500);
+      }
+    }
+
     // Everything else requires the shared app token.
     if (!isAuthorized(request, env)) {
       return errorJson('Unauthorized', env, 401);
@@ -510,11 +539,17 @@ export default {
       if (url.pathname === '/api/transactions' && request.method === 'GET') {
         return await handleTransactions(url, env);
       }
-      if (url.pathname === '/api/payments/initiate' && request.method === 'POST') {
-        return await handlePaymentInitiate(request, env);
+      if (url.pathname === '/api/state' && request.method === 'GET') {
+        return await handleGetState(env);
       }
-      if (url.pathname === '/api/payments/status' && request.method === 'GET') {
-        return await handlePaymentStatus(url, env);
+      if (url.pathname === '/api/state' && request.method === 'PUT') {
+        return await handlePutState(request, env);
+      }
+      if (url.pathname === '/api/pair' && request.method === 'POST') {
+        return await handlePairCreate(env);
+      }
+      if (url.pathname === '/api/mirror' && request.method === 'POST') {
+        return await handleMirror(request, env);
       }
       if (url.pathname === '/api/categorize' && request.method === 'POST') {
         return await handleCategorize(request, env);

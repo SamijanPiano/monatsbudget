@@ -35,6 +35,11 @@ describe('toParsed (Bank-Sync → Import-Pipeline)', () => {
     expect(out[0].purpose).toBe('')
   })
 
+  test('übernimmt die Bank-Referenz, wenn vorhanden', () => {
+    expect(toParsed([row({ bankRef: 'REF-7' })])[0].bankRef).toBe('REF-7')
+    expect(toParsed([row()])[0]).not.toHaveProperty('bankRef')
+  })
+
   test('leere Eingabe → leeres Ergebnis', () => {
     expect(toParsed([])).toEqual([])
   })

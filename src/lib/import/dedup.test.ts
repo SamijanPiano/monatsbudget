@@ -80,4 +80,17 @@ describe('mergeNew', () => {
     const second = mergeNew(known, batch)
     expect(second).toHaveLength(0)
   })
+
+  it('erkennt eine Buchung an der Bank-Referenz, auch wenn sich der Text geändert hat', () => {
+    const before = { ...tx({ purpose: 'Kartenzahlung' }), bankRef: 'REF-1' }
+    const after = { ...tx({ purpose: 'Kartenzahlung REWE Filiale 12' }), bankRef: 'REF-1' }
+    expect(after.hash).not.toBe(before.hash)
+    expect(mergeNew([before.hash], [after], ['REF-1'])).toEqual([])
+  })
+
+  it('entfernt gleiche Bank-Referenzen auch innerhalb eines Batches', () => {
+    const a = { ...tx({ purpose: 'A' }), bankRef: 'REF-2' }
+    const b = { ...tx({ purpose: 'B' }), bankRef: 'REF-2' }
+    expect(mergeNew([], [a, b])).toEqual([a])
+  })
 })

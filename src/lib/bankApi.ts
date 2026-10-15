@@ -93,3 +93,78 @@ export function aiChat(
     body: JSON.stringify({ message, context }),
   })
 }
+
+const MIRROR_TIMEOUT_MS = 20_000
+const STATE_TIMEOUT_MS = 20_000
+
+/** Schickt Schnappschuss und neue Protokolleinträge an den Worker (Spiegel für Claude). */
+export function uploadMirror(
+  config: SyncConfig,
+  snapshot: unknown,
+  events: unknown[],
+): Promise<{ ok: boolean; events: number }> {
+  return call<{ ok: boolean; events: number }>(config, '/api/mirror', {
+    method: 'POST',
+    body: JSON.stringify({ snapshot, events }),
+    // Hängende Verbindung (iOS im Hintergrund, Captive Portal) nicht ewig offen halten.
+    signal: AbortSignal.timeout(MIRROR_TIMEOUT_MS),
+  })
+}
+
+export interface RemoteState {
+  revision: number
+  updatedAt: string | null
+  /** Gerät, das zuletzt geschrieben hat. */
+  deviceId?: string | null
+  doc: unknown
+}
+
+/** Gemeinsamen Stand aller Geräte laden. */
+export function fetchState(config: SyncConfig): Promise<RemoteState> {
+  return call<RemoteState>(config, '/api/state', { signal: AbortSignal.timeout(STATE_TIMEOUT_MS) })
+}
+
+export type PushResult =
+  | { ok: true; revision: number }
+  | { ok: false; conflict: RemoteState }
+
+/** Stand hochladen; 409 heißt: ein anderes Gerät war schneller, `conflict` enthält dessen Stand. */
+export async function pushState(
+  config: SyncConfig,
+  body: { baseRevision: number; deviceId: string; doc: unknown },
+): Promise<PushResult> {
+  assertSecureUrl(config.url)
+  const res = await fetch(`${config.url}/api/state`, {
+    method: 'PUT',
+    headers: { 'X-App-Token': config.token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(STATE_TIMEOUT_MS),
+  })
+  if (res.status === 409) return { ok: false, conflict: (await res.json()) as RemoteState }
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Backend-Fehler ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`)
+  }
+  const data = (await res.json()) as { revision: number }
+  return { ok: true, revision: data.revision }
+}
+
+/** Einmal-Code für ein weiteres Gerät anfordern (10 Minuten gültig, genau einmal einlösbar). */
+export function createPairCode(config: SyncConfig): Promise<{ code: string; expiresAt: number }> {
+  return call<{ code: string; expiresAt: number }>(config, '/api/pair', { method: 'POST', body: '{}' })
+}
+
+/** Einmal-Code gegen den Zugang tauschen (das neue Gerät hat noch keinen Token). */
+export async function redeemPairCode(url: string, code: string): Promise<string> {
+  assertSecureUrl(url)
+  const res = await fetch(`${url}/api/pair/redeem`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+    signal: AbortSignal.timeout(STATE_TIMEOUT_MS),
+  })
+  if (!res.ok) throw new Error('Kopplungs-Link ist abgelaufen oder wurde schon benutzt.')
+  const data = (await res.json()) as { token?: unknown }
+  if (typeof data.token !== 'string' || !data.token) throw new Error('Kopplung fehlgeschlagen.')
+  return data.token
+}

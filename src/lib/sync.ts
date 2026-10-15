@@ -18,6 +18,8 @@ export interface BankTxn {
   purpose: string
   /** 'pending' = vorgemerkt (noch nicht abgebucht). Fehlend = gebucht (ältere Backends). */
   status?: 'booked' | 'pending'
+  /** Referenz der Bank, falls das Backend sie liefert. */
+  bankRef?: string
 }
 
 /** Anzahl + Summe (signed Cent) der noch nicht abgebuchten Umsätze. */
@@ -36,7 +38,8 @@ export function toParsed(rows: BankTxn[]): ParsedTransaction[] {
         counterparty: r.counterparty ?? '',
         purpose: r.purpose ?? '',
       }
-      return { ...base, hash: transactionHash(base) }
+      const ref = typeof r.bankRef === 'string' ? r.bankRef.trim() : ''
+      return { ...base, hash: transactionHash(base), ...(ref ? { bankRef: ref } : {}) }
     })
 }
 

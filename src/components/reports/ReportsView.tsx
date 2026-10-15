@@ -6,7 +6,6 @@ import { Donut, type DonutSegment } from '../charts/Donut'
 import { TrendChart, type TrendPoint } from '../charts/TrendChart'
 import { categoryTotals, monthlySeries } from '../../lib/reports'
 import { averageMonthlyNet, projectSavings } from '../../lib/forecast'
-import { maxHistoryMonths, isPlus } from '../../lib/entitlements'
 import { currentMonthId } from '../../lib/seed'
 import { formatCents, formatMonthShort, shiftMonthId } from '../../lib/format'
 
@@ -34,10 +33,8 @@ const TREND_SERIES = [
 export function ReportsView({ onBack }: Props) {
   const transactions = useBudgetStore((s) => s.transactions)
   const categories = useBudgetStore((s) => s.categories)
-  const settings = useBudgetStore((s) => s.settings)
   const [months, setMonths] = useState(3)
 
-  const allowedMonths = maxHistoryMonths(settings)
   const toKey = currentMonthId()
   const fromKey = shiftMonthId(toKey, -(months - 1))
 
@@ -70,27 +67,19 @@ export function ReportsView({ onBack }: Props) {
         <SectionTitle title="Berichte" hint="Wofür dein Geld über die Zeit geht" />
         <div className="segmented" role="group" aria-label="Zeitraum">
           {PERIODS.map((p) => {
-            const locked = p > allowedMonths
             return (
               <button
                 key={p}
                 type="button"
                 className={`segmented__btn ${months === p ? 'is-active' : ''}`}
                 aria-pressed={months === p}
-                disabled={locked}
                 onClick={() => setMonths(p)}
               >
-                {p} Monate{locked ? ' 🔒' : ''}
+                {p} Monate
               </button>
             )
           })}
         </div>
-        {!isPlus(settings) && (
-          <p className="notice" style={{ marginTop: 'var(--space-3)' }}>
-            Gratis siehst du bis zu 3 Monate. Längere Historie gibt es mit{' '}
-            <span className="plus-badge">Plus</span>.
-          </p>
-        )}
       </Card>
 
       {transactions.length === 0 ? (
@@ -142,7 +131,6 @@ export function ReportsView({ onBack }: Props) {
 
           <Card>
             <SectionTitle title="Sparprognose" hint={`Hochrechnung auf ${months} Monate`} />
-            {isPlus(settings) ? (
               <div className="result-list">
                 <div className="result-row">
                   <span>Ø Netto pro Monat</span>
@@ -157,12 +145,6 @@ export function ReportsView({ onBack }: Props) {
                   </span>
                 </div>
               </div>
-            ) : (
-              <p className="notice">
-                Die Sparprognose zeigt, wie viel du voraussichtlich ansparst — eine{' '}
-                <span className="plus-badge">Plus</span>-Funktion.
-              </p>
-            )}
           </Card>
         </>
       )}

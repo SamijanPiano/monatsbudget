@@ -32,6 +32,8 @@ export interface TransactionOut {
   purpose: string;
   /** 'pending' = vorgemerkt (steht zur Abbuchung an), 'booked' = tatsächlich gebucht. */
   status: 'booked' | 'pending';
+  /** Eindeutige Referenz der Bank (entry_reference/transaction_id), falls geliefert. */
+  bankRef?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +87,8 @@ export interface EbTransaction {
   creditor?: EbParty | null;
   debtor?: EbParty | null;
   remittance_information?: string[] | string | null;
+  entry_reference?: string | null; // bank-assigned, stable across syncs
+  transaction_id?: string | null;
 }
 
 export interface EbTransactionsResponse {
@@ -239,6 +243,17 @@ function transactionStatus(tx: EbTransaction): 'booked' | 'pending' | null {
 }
 
 /**
+ * Stable bank-side reference. Lets the PWA recognise a transaction even when
+ * the bank later edits its text or date (which changes the content hash).
+ */
+function bankReference(tx: EbTransaction): string | null {
+  for (const value of [tx.entry_reference, tx.transaction_id]) {
+    if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+  }
+  return null;
+}
+
+/**
  * Normalize a single transaction. Returns null if it has no usable amount or
  * was rejected/cancelled, so callers can drop it.
  */
@@ -251,6 +266,7 @@ export function normalizeTransaction(tx: EbTransaction | null | undefined): Tran
   if (status === null) return null;
 
   const date = (tx.booking_date ?? tx.value_date ?? '').trim();
+  const bankRef = bankReference(tx);
 
   return {
     date,
@@ -258,6 +274,7 @@ export function normalizeTransaction(tx: EbTransaction | null | undefined): Tran
     counterparty: counterpartyName(tx),
     purpose: remittanceToPurpose(tx.remittance_information),
     status,
+    ...(bankRef ? { bankRef } : {}),
   };
 }
 

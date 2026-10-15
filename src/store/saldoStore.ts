@@ -8,6 +8,8 @@ import type { SaldoItem, SaldoState, SaldoTrip } from '../types/saldo'
 import { createId } from '../lib/id'
 import { balanceOf } from '../lib/saldo'
 import { todayIso } from '../lib/euro'
+import { logActivity } from './activityStore'
+import { formatCents } from '../lib/format'
 import { sanitizeSaldoState } from '../lib/saldoBackup'
 
 const STORAGE_KEY = 'saldo-v1'
@@ -59,6 +61,13 @@ function findOrder(s: SaldoState, tripId: string, personId: string) {
   return s.trips.find((t) => t.id === tripId)?.orders.find((o) => o.personId === personId)
 }
 
+/** Name einer Person fürs Protokoll. */
+function personName(s: SaldoState, personId: string): string {
+  return s.people.find((p) => p.id === personId)?.name ?? 'Unbekannt'
+}
+
+const priceText = (cents: number | null) => (cents == null ? 'ohne Preis' : formatCents(cents))
+
 export const useSaldoStore = create<SaldoStore>()(
   persist(
     (set) => {
@@ -85,6 +94,7 @@ export const useSaldoStore = create<SaldoStore>()(
           commit((s) => {
             s.people.push({ id, name: name.trim() })
           })
+          logActivity('schulden', `Person angelegt: ${name.trim()}`)
           return id
         },
 
@@ -136,6 +146,8 @@ export const useSaldoStore = create<SaldoStore>()(
 
         removeTrip: (id) =>
           commit((s) => {
+            const trip = s.trips.find((t) => t.id === id)
+            if (trip) logActivity('schulden', `Einkauf vom ${trip.date} gelöscht`)
             s.trips = s.trips.filter((t) => t.id !== id)
           }),
 
@@ -176,6 +188,7 @@ export const useSaldoStore = create<SaldoStore>()(
             if (price != null) prod.lastPrice = price
             const item: SaldoItem = { id: createId(), productId: prod.id, label: null, qty, price }
             order.items.push(item)
+            logActivity('schulden', `${personName(s, personId)}: ${qty}× ${prod.name} (${priceText(price)})`)
           }),
 
         addFreeItem: (tripId, personId, label, priceCents, qty = 1) => {
@@ -184,6 +197,7 @@ export const useSaldoStore = create<SaldoStore>()(
           commit((s) => {
             const order = findOrder(s, tripId, personId)
             if (!order) return
+            logActivity('schulden', `${personName(s, personId)}: ${qty}× ${text} (${priceText(priceCents)})`)
             order.items.push({
               id: createId(),
               productId: null,
@@ -242,14 +256,25 @@ export const useSaldoStore = create<SaldoStore>()(
           commit((s) => {
             const order = findOrder(s, tripId, personId)
             if (!order) return
+            const unchanged =
+              (paid === undefined || paid === order.paid) &&
+              (amountPaid === undefined || amountPaid === order.amountPaid)
             if (paid !== undefined) order.paid = paid
             if (amountPaid !== undefined) order.amountPaid = amountPaid
+            if (unchanged) return
+            const what =
+              amountPaid != null ? `${formatCents(amountPaid)} erhalten` : paid ? 'als bezahlt markiert' : 'Bezahlung zurückgesetzt'
+            logActivity('schulden', `${personName(s, personId)}: ${what}`)
           }),
 
         settleBalance: (personId) =>
           commit((s) => {
             if (!s.people.some((p) => p.id === personId)) return
             if (balanceOf(s, personId) === 0) return
+            logActivity(
+              'schulden',
+              `${personName(s, personId)}: Saldo ausgeglichen (vorher ${formatCents(balanceOf(s, personId))})`,
+            )
             // Eine bezahlte Bestellung ohne Posten gleicht per Ledger-Regel
             // (effectivePaid = total − prevBalance) jeden Saldo exakt aus —
             // aber nur als chronologisch LETZTER Eintrag der Person. Deshalb

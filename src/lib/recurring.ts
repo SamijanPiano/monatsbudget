@@ -7,29 +7,49 @@ import { createId } from './id'
 import type { RecurringRule, Transaction } from '../types/budget'
 
 // ─── Schwellen & Toleranzen ──────────────────────────────────────────────────
-// Eine Gruppe gilt als wiederkehrend, wenn sie in mindestens MIN_OCCURRENCES
-// DISTINKTEN Monaten auftaucht. Zwei Treffer reichen, damit Abos direkt nach
-// dem zweiten Monat erkannt werden.
+// Ein Dauerposten ist „immer derselbe Betrag am immer gleichen Tag":
+// - mindestens MIN_OCCURRENCES Treffer in aufeinanderfolgenden Monaten,
+//   je Monat genau einer,
+// - Betrag weicht höchstens 50 Cent bzw. 3 % vom typischen Betrag ab,
+// - jeder Treffer liegt im Plan (siehe isOnSchedule).
 const MIN_OCCURRENCES = 2
-// Betrag gilt als „ungefähr stabil", wenn die Spanne (max−min) entweder
-// ≤ 10 % des typischen Betrags ODER ≤ 2 € (200 Cent) ist. Das fängt sowohl
-// kleine Abos (feste Cent) als auch schwankende Rechnungen (Strom) ab.
-const AMOUNT_TOLERANCE_RATIO = 0.1
-const AMOUNT_TOLERANCE_CENT = 200
+const AMOUNT_TOLERANCE_RATIO = 0.03
+const AMOUNT_TOLERANCE_CENT = 50
+/** Abbuchung darf so viele Tage vom üblichen Tag abweichen. */
+const SCHEDULE_TOLERANCE_DAYS = 2
 
 /** Empfänger normalisieren: trimmen, Mehrfach-Whitespace + Groß/Klein angleichen. */
 function normalizeCounterparty(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLowerCase()
 }
 
-/** Monatsschlüssel 'YYYY-MM' aus einem 'YYYY-MM-DD'-Datum. */
-function monthOf(date: string): string {
-  return date.slice(0, 7)
+/** Fortlaufender Monatsindex (Jahr*12 + Monat), um Lücken zu erkennen. */
+function monthIndex(date: string): number {
+  return Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7)) - 1
 }
 
 /** Tag des Monats (1–31) aus einem 'YYYY-MM-DD'-Datum. */
 function dayOf(date: string): number {
   return Number(date.slice(8, 10))
+}
+
+/** Anzahl Tage im Monat des Datums. */
+export function daysInMonthOf(date: string): number {
+  return new Date(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)), 0)).getUTCDate()
+}
+
+/**
+ * Abstand zweier Monatstage über die Monatsgrenze hinweg: der 31. und der 1.
+ * liegen einen Tag auseinander, nicht 30.
+ */
+export function cyclicDayDistance(day: number, typicalDay: number, monthLength: number): number {
+  const direct = Math.abs(day - typicalDay)
+  return Math.min(direct, monthLength - direct)
+}
+
+/** Wochentag eines 'YYYY-MM-DD'-Datums: 0 = Sonntag … 6 = Samstag. */
+export function weekdayOf(date: string): number {
+  return new Date(`${date}T00:00:00Z`).getUTCDay()
 }
 
 /** Median einer Cent-Liste (ganzzahlig; bei gerader Länge unterer Mittelwert). */
@@ -59,32 +79,88 @@ function mostCommon<T>(values: readonly T[]): T | undefined {
   return best
 }
 
-/**
- * Heuristik: Sind diese Beträge/Daten ein monatlich wiederkehrender Posten?
- * Bedingungen: ≥ MIN_OCCURRENCES distinkte Monate UND ungefähr stabiler Betrag.
- */
-export function isLikelyRecurring(amounts: readonly number[], dates: readonly string[]): boolean {
-  if (amounts.length < MIN_OCCURRENCES || dates.length < MIN_OCCURRENCES) {
-    return false
-  }
-
-  const distinctMonths = new Set(dates.map(monthOf))
-  if (distinctMonths.size < MIN_OCCURRENCES) {
-    return false
-  }
-
-  return isAmountStable(amounts)
+/** Liegt `amount` innerhalb der Betragstoleranz um `typical`? (beides Cent, Betrag) */
+function withinAmountTolerance(amount: number, typical: number): boolean {
+  const diff = Math.abs(Math.abs(amount) - Math.abs(typical))
+  return diff <= AMOUNT_TOLERANCE_CENT || diff <= Math.abs(typical) * AMOUNT_TOLERANCE_RATIO
 }
 
-/** Betrag „ungefähr stabil": Spanne ≤ 10 % des typischen Betrags ODER ≤ 2 €. */
-function isAmountStable(amounts: readonly number[]): boolean {
-  const magnitudes = amounts.map((a) => Math.abs(a))
-  const min = Math.min(...magnitudes)
-  const max = Math.max(...magnitudes)
-  const spread = max - min
-  const typical = median(magnitudes)
-  const ratioTolerance = typical * AMOUNT_TOLERANCE_RATIO
-  return spread <= ratioTolerance || spread <= AMOUNT_TOLERANCE_CENT
+/**
+ * Liegt eine Buchung „im Plan", also nah genug am typischen Abbuchungstag?
+ * `date` ist das Buchungsdatum (YYYY-MM-DD), `typicalDay` der übliche Tag (1–31).
+ */
+export function isOnSchedule(date: string, typicalDay: number): boolean {
+  const day = dayOf(date)
+  const monthLength = daysInMonthOf(date)
+  // Ein „31." im 30-Tage-Monat wird am letzten Tag fällig.
+  const target = Math.min(typicalDay, monthLength)
+  if (cyclicDayDistance(day, target, monthLength) <= SCHEDULE_TOLERANCE_DAYS) return true
+
+  // Fällt der Solltag aufs Wochenende, bucht die Bank erst am nächsten Werktag,
+  // danach gilt wieder dieselbe Toleranz.
+  const weekday = weekdayOf(`${date.slice(0, 8)}${String(target).padStart(2, '0')}`)
+  const weekendShift = weekday === 6 ? 2 : weekday === 0 ? 1 : 0
+  const late = day - target
+  return weekendShift > 0 && late >= 0 && late <= weekendShift + SCHEDULE_TOLERANCE_DAYS
+}
+
+/**
+ * Heuristik: Sind diese Beträge/Daten ein monatlicher Dauerposten?
+ * Bedingungen: ≥ MIN_OCCURRENCES Treffer in aufeinanderfolgenden Monaten
+ * (je Monat genau einer), stabiler Betrag, jeder Treffer im Plan.
+ */
+export function isLikelyRecurring(amounts: readonly number[], dates: readonly string[]): boolean {
+  if (amounts.length < MIN_OCCURRENCES || dates.length !== amounts.length) {
+    return false
+  }
+
+  const typical = median(amounts)
+  if (!amounts.every((a) => withinAmountTolerance(a, typical))) return false
+
+  // Maßgeblich ist die jüngste lückenlose Folge: eine alte Lücke oder ein
+  // Doppel-Monat in der Vergangenheit soll einen laufenden Dauerposten nicht
+  // dauerhaft verstecken.
+  const run = latestMonthlyRun(dates)
+  if (run.length < MIN_OCCURRENCES) return false
+  const typicalDay = median(run.map(dayOf))
+  return run.every((d) => isOnSchedule(d, typicalDay))
+}
+
+/** Jüngste Folge von Daten in aufeinanderfolgenden Monaten, je Monat genau eines. */
+function latestMonthlyRun(dates: readonly string[]): string[] {
+  const sorted = [...dates].sort()
+  const run: string[] = []
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const date = sorted[i]
+    const next = run[0]
+    if (next === undefined) {
+      run.unshift(date)
+      continue
+    }
+    const gap = monthIndex(next) - monthIndex(date)
+    if (gap === 0) return run.length > 1 ? run.slice(1) : [] // zwei im selben Monat: Folge endet hier
+    if (gap !== 1) break
+    run.unshift(date)
+  }
+  return run
+}
+
+/**
+ * Teilt die Buchungen eines Empfängers in Betrags-Cluster, damit z. B. zwei
+ * verschiedene Abos über PayPal getrennt erkannt werden. Gleiches Vorzeichen,
+ * Betrag innerhalb der Toleranz um den ersten (kleinsten) Betrag des Clusters.
+ */
+function clusterByAmount(txs: readonly Transaction[]): Transaction[][] {
+  const sorted = [...txs].sort((a, b) => Math.abs(a.amount) - Math.abs(b.amount))
+  const clusters: Transaction[][] = []
+  for (const tx of sorted) {
+    const target = clusters.find(
+      (c) => Math.sign(c[0].amount) === Math.sign(tx.amount) && withinAmountTolerance(tx.amount, c[0].amount),
+    )
+    if (target) target.push(tx)
+    else clusters.push([tx])
+  }
+  return clusters
 }
 
 /** Eine nach Empfänger gruppierte Sammlung von Buchungen. */
@@ -147,26 +223,24 @@ export function detectRecurring(txs: readonly Transaction[], today: Date = new D
   const rules: RecurringRule[] = []
 
   for (const group of groupByCounterparty(txs)) {
-    const amounts = group.txs.map((t) => t.amount)
-    const dates = group.txs.map((t) => t.date)
+    for (const cluster of clusterByAmount(group.txs)) {
+      const amounts = cluster.map((t) => t.amount)
+      const dates = cluster.map((t) => t.date)
+      if (!isLikelyRecurring(amounts, dates)) continue
 
-    if (!isLikelyRecurring(amounts, dates)) {
-      continue
+      const typicalDay = median(dates.map(dayOf))
+      const categoryId =
+        mostCommon(cluster.map((t) => t.categoryId).filter((c): c is string => c !== null)) ?? null
+
+      rules.push({
+        id: createId(),
+        counterparty: group.counterparty,
+        amountApprox: median(amounts),
+        cadence: 'monthly',
+        categoryId,
+        nextExpected: nextExpectedDate(typicalDay, today),
+      })
     }
-
-    // Vorzeichen aus dem Median der Beträge, Betrag aus dem Median der Beträge.
-    const amountApprox = median(amounts)
-    const typicalDay = median(dates.map(dayOf))
-    const categoryId = mostCommon(group.txs.map((t) => t.categoryId).filter((c): c is string => c !== null)) ?? null
-
-    rules.push({
-      id: createId(),
-      counterparty: group.counterparty,
-      amountApprox,
-      cadence: 'monthly',
-      categoryId,
-      nextExpected: nextExpectedDate(typicalDay, today),
-    })
   }
 
   return rules

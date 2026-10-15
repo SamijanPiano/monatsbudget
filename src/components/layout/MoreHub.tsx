@@ -5,10 +5,8 @@ import {
   IconBank,
   IconPieChart,
   IconPlan,
-  IconSend,
   IconShield,
   IconUsers,
-  IconWallet,
 } from '../ui/icons'
 import type { TabId } from './nav'
 
@@ -20,12 +18,10 @@ interface HubItem {
 }
 
 const ITEMS: HubItem[] = [
-  { id: 'plan', label: 'Monatsplan', hint: 'Posten eintragen, Rest rechnet', icon: IconPlan },
-  { id: 'budgets', label: 'Budgets', hint: 'Limits je Kategorie', icon: IconWallet },
+  { id: 'plan', label: 'Monatsplan', hint: 'Budget deiner Periode, Buchungen zuordnen', icon: IconPlan },
   { id: 'berichte', label: 'Berichte', hint: 'Ausgaben über die Zeit', icon: IconPieChart },
   { id: 'vermoegen', label: 'Vermögen', hint: 'Konten & Gesamtvermögen', icon: IconBank },
   { id: 'vertraege', label: 'Verträge', hint: 'Abos & Kündigungsfristen', icon: IconShield },
-  { id: 'zahlungen', label: 'Zahlungen', hint: 'Überweisen & Daueraufträge', icon: IconSend },
   { id: 'schulden', label: 'Schulden', hint: 'Auslagen & Abrechnungen', icon: IconUsers },
   { id: 'ai', label: 'KI-Assistent', hint: 'Dein Finanz-Assistent', icon: IconAI },
 ]

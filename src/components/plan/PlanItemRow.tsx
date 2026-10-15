@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useLearningStore } from '../../store/learningStore'
 import type { PlanSection } from '../../lib/plan'
 import { formatMoney } from '../../lib/format'
@@ -17,6 +17,8 @@ interface PlanItemRowProps {
   placeholder: string
   onChange: (patch: { label?: string; amount?: number }) => void
   onRemove: () => void
+  /** Optionaler Zusatz unter der Zeile (z. B. Ist-Stand der Periode). */
+  children?: ReactNode
 }
 
 /**
@@ -30,6 +32,7 @@ export function PlanItemRow({
   placeholder,
   onChange,
   onRemove,
+  children,
 }: PlanItemRowProps) {
   const [draftLabel, setDraftLabel] = useState(label)
 
@@ -96,6 +99,7 @@ export function PlanItemRow({
           />
         </div>
       )}
+      {children}
     </div>
   )
 }

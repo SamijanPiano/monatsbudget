@@ -8,11 +8,13 @@ import { IconDownload, IconUpload } from '../ui/icons'
 import { GoalCard } from '../goals/GoalCard'
 import { serializeBackup, parseUnifiedBackup } from '../../lib/backup'
 import { transactionsToCsv } from '../../lib/exportCsv'
-import { isPlus } from '../../lib/entitlements'
 import { formatMonthId } from '../../lib/format'
 import { useSaldoStore, saldoSnapshot } from '../../store/saldoStore'
 import { MoreHub } from '../layout/MoreHub'
 import { LearningSection } from './LearningSection'
+import { DuplicatesSection } from './DuplicatesSection'
+import { MirrorSection } from './MirrorSection'
+import { CloudSection } from './CloudSection'
 import type { TabId } from '../layout/nav'
 
 interface SettingsViewProps {
@@ -29,7 +31,6 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
   const deleteMonth = useBudgetStore((s) => s.deleteMonth)
   const replaceState = useBudgetStore((s) => s.replaceState)
   const setCashEnabled = useBudgetStore((s) => s.setCashEnabled)
-  const restartOnboarding = useBudgetStore((s) => s.restartOnboarding)
   const goals = useBudgetStore((s) => s.profile.goals)
   const replaceSaldo = useSaldoStore((s) => s.replaceSaldo)
   const { activeMonthId } = useActiveMonth()
@@ -73,10 +74,6 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
   }
 
   const handleCsvExport = () => {
-    if (!isPlus(settings)) {
-      setMessage({ text: 'Der CSV-Export ist eine Plus-Funktion.', ok: false })
-      return
-    }
     const { transactions, categories, accounts } = useBudgetStore.getState()
     if (transactions.length === 0) {
       setMessage({ text: 'Noch keine Buchungen zum Exportieren.', ok: false })
@@ -135,8 +132,8 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
       <Card>
         <SectionTitle title="Backup" hint="Daten sichern oder auf ein neues Gerät übertragen" />
         <p className="settings-text">
-          Deine Daten liegen nur auf diesem Gerät. Exportiere regelmäßig ein Backup
-          (z. B. in iCloud) und importiere es bei Bedarf wieder.
+          Deine Daten liegen auf diesem Gerät, eine Kopie geht an deinen eigenen Worker (für
+          Claude). Exportiere trotzdem regelmäßig ein Backup, z. B. in iCloud.
         </p>
         <div className="settings-actions">
           <Button variant="primary" onClick={handleExport}>
@@ -147,7 +144,6 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
           </Button>
           <Button variant="outline" onClick={handleCsvExport}>
             <IconDownload /> CSV-Export
-            {!isPlus(settings) && <span className="plus-badge">Plus</span>}
           </Button>
           <input
             ref={fileRef}
@@ -206,11 +202,14 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
           <div className="goals-list">
             {goals.map((g) => <GoalCard key={g.id} goal={g} />)}
           </div>
-          <p className="settings-text" style={{ marginTop: 'var(--space-3)', marginBottom: 0 }}>
-            Neue Ziele kannst du über den Einrichtungsassistenten hinzufügen.
-          </p>
         </Card>
       )}
+
+      <CloudSection />
+
+      <DuplicatesSection />
+
+      <MirrorSection />
 
       <LearningSection />
 
@@ -228,49 +227,6 @@ export function SettingsView({ onNavigate }: SettingsViewProps) {
             aria-checked={cashEnabled}
             className={`settings-toggle ${cashEnabled ? 'settings-toggle--on' : ''}`}
             onClick={() => setCashEnabled(!cashEnabled)}
-          >
-            <span className="settings-toggle__knob" />
-          </button>
-        </div>
-      </Card>
-
-      <Card>
-        <SectionTitle title="Einrichtung" hint="Wizard erneut starten" />
-        <p className="settings-text">
-          Starte den Einrichtungsassistenten neu, um deine Ziele oder Präferenzen zu ändern.
-          Deine Monatsdaten bleiben erhalten.
-        </p>
-        <div className="settings-actions">
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (confirm('Einrichtungsassistenten neu starten? Monatsdaten bleiben erhalten.')) {
-                restartOnboarding()
-              }
-            }}
-          >
-            Einrichtung neu starten
-          </Button>
-        </div>
-      </Card>
-
-      <Card>
-        <SectionTitle
-          title="Plus (Test)"
-          hint="Schaltet Plus-Funktionen lokal frei — noch ohne echte Bezahlung"
-        />
-        <p className="settings-text">
-          Mit Plus: unbegrenzte Budgets, Langzeit-Historie in den Berichten, CSV-Export und die
-          Sparprognose. Dieser Schalter dient zum Ausprobieren.
-        </p>
-        <div className="settings-toggle-row">
-          <span className="settings-toggle-label">Plus aktiv</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isPlus(settings)}
-            className={`settings-toggle ${isPlus(settings) ? 'settings-toggle--on' : ''}`}
-            onClick={() => updateSettings({ plus: !isPlus(settings) })}
           >
             <span className="settings-toggle__knob" />
           </button>

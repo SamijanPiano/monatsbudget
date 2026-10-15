@@ -47,19 +47,25 @@ export function transactionHash(t: HashInput): string {
 }
 
 /**
- * Liefert aus `incoming` nur die Buchungen, deren Hash weder im Bestand
- * (`existingHashes`) noch bereits weiter vorn im Batch vorkam. Idempotent:
- * derselbe Batch zweimal importiert ergibt einmal die Neuen, danach keine.
+ * Liefert aus `incoming` nur die Buchungen, deren Hash bzw. Bank-Referenz weder
+ * im Bestand noch bereits weiter vorn im Batch vorkam. Die Bank-Referenz fängt
+ * Buchungen ab, deren Text oder Datum die Bank nachträglich geändert hat (anderer
+ * Hash, dieselbe Buchung). Idempotent: derselbe Batch zweimal importiert ergibt
+ * einmal die Neuen, danach keine.
  */
 export function mergeNew(
   existingHashes: Set<string> | string[],
   incoming: ParsedTransaction[],
+  existingRefs: Set<string> | string[] = [],
 ): ParsedTransaction[] {
   const known = new Set(existingHashes)
+  const knownRefs = new Set(existingRefs)
   const result: ParsedTransaction[] = []
   for (const t of incoming) {
     if (known.has(t.hash)) continue
+    if (t.bankRef && knownRefs.has(t.bankRef)) continue
     known.add(t.hash)
+    if (t.bankRef) knownRefs.add(t.bankRef)
     result.push(t)
   }
   return result

@@ -61,10 +61,6 @@ export interface Settings {
   locale: string
   /** Optionales langfristiges Sparziel (€). 0 = aus */
   savingsGoal: number
-  /** Plus-Tier lokal aktiv (Test-Schalter; noch keine echte Bezahlung). */
-  plus?: boolean
-  /** Überweisungen (PSD2 PIS) freigeschaltet. Standard aus — Sandbox-first. */
-  paymentsEnabled?: boolean
   /** Lern-Schicht: ab dieser Konfidenz (0..1) wird ein Wert automatisch vorausgefüllt. */
   autofillThreshold?: number
   /** Lern-Schicht: ab dieser Konfidenz (0..1) wird ein Wert als Chip vorgeschlagen. */
@@ -132,6 +128,8 @@ export interface Transaction {
   source: TransactionSource
   /** Dedup-Schlüssel für idempotenten (Re-)Import. */
   hash: string
+  /** Referenz der Bank (Live-Sync), zweiter Dedup-Schlüssel neben dem Hash. */
+  bankRef?: string
 }
 
 export interface RecurringRule {
@@ -202,6 +200,10 @@ export interface BudgetState {
   contracts: Contract[]
   /** v6.1: vorgemerkte Umsätze aus dem letzten Bank-Sync (null = keine/kein Sync). */
   bankPending: BankPending | null
+  /** Paare (pairKey), die der Nutzer als „kein Duplikat" bestätigt hat. */
+  dismissedDuplicates?: string[]
+  /** IDs gelöschter Buchungen, damit sie beim Geräte-Abgleich nicht zurückkommen. */
+  deletedTransactionIds?: string[]
 }
 
 /** Abgeleitete Werte eines Monats (entspricht den Excel-Formeln). */

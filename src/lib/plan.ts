@@ -3,6 +3,7 @@
 // Keine UI, vollständig getestet.
 
 import { round2 } from './calc'
+import { createId } from './id'
 import type { Month } from '../types/budget'
 
 export type PlanSection = 'income' | 'fixed' | 'variable'
@@ -12,6 +13,12 @@ export interface PlanItem {
   label: string
   /** Betrag in Euro */
   amount: number
+  /** Gelernte Empfänger (normalisiert): deren Buchungen gehören zu diesem Posten. */
+  counterparties?: string[]
+  /** Sammelposten: nimmt alle Ausgaben auf, die sonst nirgends passen. */
+  catchAll?: boolean
+  /** Gehaltsposten: sein Eingang bestimmt den Periodenstart. */
+  salary?: boolean
 }
 
 export interface Plan {
@@ -114,9 +121,80 @@ export function verdictTone(plan: Plan, calc: PlanCalc): VerdictTone {
   if (safe(plan.balance) === 0) return 'unknown'
   if (!calc.isEnough) return 'short'
 
-  // TODO(human): Ab wann ist ein positiver Puffer „knapp" ('tight')?
+  // Offen (Samuel): Ab wann ist ein positiver Puffer „knapp" ('tight')?
   // Verfügbar: calc.remaining (Puffer in €), calc.needed (was noch abgeht),
   // calc.fixed (feste Abzüge), calc.income.
 
   return 'ok'
 }
+
+// ─── Rollen & Lernen (Perioden-Budget) ──────────────────────────────────────
+
+export const CATCH_ALL_LABEL = 'Täglicher Verbrauch'
+const CATCH_ALL_HINT = /t(ä|ae)glich|verbrauch/i
+
+export type PlanRole = 'catchAll' | 'salary'
+
+/** Neue Liste, in der genau `id` die Rolle trägt (alle anderen verlieren sie). */
+function withRole(items: PlanItem[], role: PlanRole, id: string | undefined): PlanItem[] {
+  return items.map((it) => {
+    const has = it.id === id
+    if (Boolean(it[role]) === has) return it
+    const next: PlanItem = { ...it }
+    if (has) next[role] = true
+    else delete next[role]
+    return next
+  })
+}
+
+/**
+ * Stellt sicher, dass es einen Sammelposten und einen Gehaltsposten gibt.
+ * Sammelposten: vorhandener „täglich/Verbrauch"-Posten, sonst neu angelegt.
+ * Gehalt: erster Einnahmen-Posten. Bestehende Rollen bleiben unberührt.
+ */
+export function ensurePlanRoles(plan: Plan): Plan {
+  let next = plan
+  const hasCatchAll = [...plan.fixed, ...plan.variable].some((i) => i.catchAll)
+  if (!hasCatchAll) {
+    const hinted = plan.variable.find((i) => CATCH_ALL_HINT.test(i.label))
+    next = hinted
+      ? { ...next, variable: withRole(next.variable, 'catchAll', hinted.id) }
+      : {
+          ...next,
+          variable: [...next.variable, { id: createId(), label: CATCH_ALL_LABEL, amount: 0, catchAll: true }],
+        }
+  }
+  if (!next.income.some((i) => i.salary) && next.income[0]) {
+    next = { ...next, income: withRole(next.income, 'salary', next.income[0].id) }
+  }
+  return next
+}
+
+/** Setzt eine Rolle auf genau einen Posten. Sammelposten nur bei Ausgaben, Gehalt nur bei Einnahmen. */
+export function setRole(plan: Plan, role: PlanRole, id: string): Plan {
+  if (role === 'salary') return { ...plan, income: withRole(plan.income, 'salary', id) }
+  return {
+    ...plan,
+    fixed: withRole(plan.fixed, 'catchAll', id),
+    variable: withRole(plan.variable, 'catchAll', id),
+  }
+}
+
+/**
+ * Lernt aus einer Verschiebung: der Empfänger gehört ab jetzt zum Zielposten
+ * und wird bei allen anderen Posten entfernt. Bei einem Sonderziel (Sparen,
+ * nicht zählen) wird er nur entfernt.
+ */
+export function learnCounterparty(plan: Plan, counterpartyKey: string, targetId: string): Plan {
+  // Ohne Empfänger gäbe es nichts zu lernen; ein leerer Schlüssel würde sonst
+  // jede Buchung ohne Empfänger an diesen Posten binden.
+  if (counterpartyKey.trim() === '') return plan
+  const update = (items: PlanItem[]): PlanItem[] =>
+    items.map((it) => {
+      const others = (it.counterparties ?? []).filter((c) => c !== counterpartyKey)
+      const counterparties = it.id === targetId ? [...others, counterpartyKey] : others
+      return it.counterparties || it.id === targetId ? { ...it, counterparties } : it
+    })
+  return { ...plan, income: update(plan.income), fixed: update(plan.fixed), variable: update(plan.variable) }
+}
+

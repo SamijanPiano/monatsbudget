@@ -202,3 +202,41 @@
   color: var(--text-faint);
   font-size: var(--text-xs);
 }
+
+/* ── Duplikat-Prüfliste ──────────────────────────────────────────────────── */
+.dup-list {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.dup-pair {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.dup-pair__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+.dup-pair__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dup-pair__dates {
+  margin: var(--space-1) 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.dup-pair__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

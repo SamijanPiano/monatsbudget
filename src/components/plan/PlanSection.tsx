@@ -4,6 +4,8 @@ import { formatMoney } from '../../lib/format'
 import { Card, SectionTitle } from '../ui/Card'
 import { IconPlus } from '../ui/icons'
 import { PlanItemRow } from './PlanItemRow'
+import { PlanItemActual } from './PlanItemActual'
+import type { PeriodActuals } from '../../lib/planMatch'
 
 interface PlanSectionProps {
   section: Section
@@ -13,6 +15,8 @@ interface PlanSectionProps {
   hint: string
   addLabel: string
   placeholder: string
+  /** Ist-Werte der gewählten Periode (fehlt = nur Planung). */
+  actuals?: PeriodActuals
 }
 
 /** Ein Block des Monatsplans mit Einzelposten und automatischer Summe. */
@@ -24,10 +28,14 @@ export function PlanSection({
   hint,
   addLabel,
   placeholder,
+  actuals,
 }: PlanSectionProps) {
   const addItem = usePlanStore((s) => s.addItem)
   const updateItem = usePlanStore((s) => s.updateItem)
   const removeItem = usePlanStore((s) => s.removeItem)
+  const setRole = usePlanStore((s) => s.setRole)
+  const roleOf = (it: PlanItem) => (it.catchAll ? 'catchAll' : it.salary ? 'salary' : null)
+  const roleToGive = section === 'income' ? 'salary' : 'catchAll'
 
   return (
     <Card as="section" className="plan-card">
@@ -43,7 +51,18 @@ export function PlanSection({
             placeholder={placeholder}
             onChange={(patch) => updateItem(section, it.id, patch)}
             onRemove={() => removeItem(section, it.id)}
-          />
+          >
+            {actuals && (
+              <PlanItemActual
+                itemId={it.id}
+                section={section}
+                planned={it.amount}
+                actual={actuals.byTarget[it.id]}
+                role={roleOf(it)}
+                onMakeRole={roleOf(it) ? null : () => setRole(roleToGive, it.id)}
+              />
+            )}
+          </PlanItemRow>
         ))}
       </div>
 

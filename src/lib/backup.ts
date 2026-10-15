@@ -116,6 +116,7 @@ function coerceTransaction(raw: unknown): Transaction {
     accountId: coerceStr(r.accountId),
     source: r.source === 'sync' || r.source === 'manual' ? r.source : 'import',
     hash: coerceStr(r.hash, createId()),
+    ...(typeof r.bankRef === 'string' && r.bankRef ? { bankRef: r.bankRef } : {}),
   }
 }
 
@@ -196,7 +197,7 @@ function coerceRecurring(raw: unknown): RecurringRule {
 }
 
 /** Versucht, Budget-Daten aus einem Objekt zu lesen; null wenn keine Monate. */
-function coerceBudget(obj: Record<string, unknown>): BackupPayload | null {
+export function coerceBudget(obj: Record<string, unknown>): BackupPayload | null {
   if (typeof obj.months !== 'object' || !obj.months) return null
   const rawMonths = obj.months as Record<string, unknown>
   const monthIds = Object.keys(rawMonths).filter((id) => MONTH_ID_RE.test(id))
