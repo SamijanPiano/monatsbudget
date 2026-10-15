@@ -156,3 +156,10 @@ describe('Review-Fälle', () => {
   })
 })
 
+describe('Abgleich behält gelernte Sonderziele', () => {
+  it('parseDoc übernimmt learnedSpecial', () => {
+    const d = doc({ plan: { plan: { income: [], fixed: [], variable: [], savings: 0, balance: 0, learnedSpecial: { 'sempf samuel': 'savings' } }, overrides: {} } })
+    expect(parseDoc(JSON.parse(JSON.stringify(d)))?.plan.plan.learnedSpecial).toEqual({ 'sempf samuel': 'savings' })
+  })
+})
+

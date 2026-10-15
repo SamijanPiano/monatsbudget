@@ -181,6 +181,13 @@ export function parseDoc(raw: unknown): SyncDoc | null {
         variable: objects(plan.variable),
         savings: num(plan.savings),
         balance: num(plan.balance),
+        ...(isObj(plan.learnedSpecial)
+          ? {
+              learnedSpecial: Object.fromEntries(
+                Object.entries(plan.learnedSpecial).filter((e): e is [string, string] => typeof e[1] === 'string'),
+              ),
+            }
+          : {}),
       },
       overrides: Object.fromEntries(
         Object.entries(isObj(p.overrides) ? p.overrides : {}).filter(

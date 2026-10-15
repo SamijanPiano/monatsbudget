@@ -29,6 +29,8 @@ export interface Plan {
   savings: number
   /** Aktueller Kontostand für „Reicht es?" (€) */
   balance: number
+  /** Gelernte Empfänger für Sonderziele: Empfänger → 'savings' | 'excluded'. */
+  learnedSpecial?: Record<string, string>
 }
 
 export interface PlanCalc {
@@ -135,6 +137,9 @@ const CATCH_ALL_HINT = /t(ä|ae)glich|verbrauch/i
 
 export type PlanRole = 'catchAll' | 'salary'
 
+/** Sonderziele, deren Empfänger sich die App beim Verschieben merkt (Werte wie in planMatch). */
+const LEARNABLE_SPECIAL = ['savings', 'excluded']
+
 /** Neue Liste, in der genau `id` die Rolle trägt (alle anderen verlieren sie). */
 function withRole(items: PlanItem[], role: PlanRole, id: string | undefined): PlanItem[] {
   return items.map((it) => {
@@ -189,12 +194,22 @@ export function learnCounterparty(plan: Plan, counterpartyKey: string, targetId:
   // Ohne Empfänger gäbe es nichts zu lernen; ein leerer Schlüssel würde sonst
   // jede Buchung ohne Empfänger an diesen Posten binden.
   if (counterpartyKey.trim() === '') return plan
+  // Sparen und „nicht zählen" sind keine Posten: dafür eine eigene Zuordnung merken.
+  const learnedSpecial = { ...(plan.learnedSpecial ?? {}) }
+  delete learnedSpecial[counterpartyKey]
+  if (LEARNABLE_SPECIAL.includes(targetId)) learnedSpecial[counterpartyKey] = targetId
   const update = (items: PlanItem[]): PlanItem[] =>
     items.map((it) => {
       const others = (it.counterparties ?? []).filter((c) => c !== counterpartyKey)
       const counterparties = it.id === targetId ? [...others, counterpartyKey] : others
       return it.counterparties || it.id === targetId ? { ...it, counterparties } : it
     })
-  return { ...plan, income: update(plan.income), fixed: update(plan.fixed), variable: update(plan.variable) }
+  return {
+    ...plan,
+    income: update(plan.income),
+    fixed: update(plan.fixed),
+    variable: update(plan.variable),
+    learnedSpecial,
+  }
 }
 

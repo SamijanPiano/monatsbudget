@@ -172,5 +172,11 @@ describe('actualsForPeriod und salaryDates', () => {
     const data = input([nebenjob, lohn])
     expect(salaryDates(data, assignToPlan(data))).toEqual(['2026-07-15'])
   })
+
+  test('gelerntes Sparen: Überweisungen an sich selbst landen künftig bei Sparen', () => {
+    const t = tx({ counterparty: 'Sempf Samuel', amount: -35000, categoryId: null })
+    const learned = { ...plan(), learnedSpecial: { 'sempf samuel': 'savings' } }
+    expect(assignToPlan(input([t], { plan: learned })).get(t.id)).toBe('savings')
+  })
 })
 

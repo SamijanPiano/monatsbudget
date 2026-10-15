@@ -112,6 +112,8 @@ function assignOne(
   const key = normalizeKey(tx.counterparty)
   const learned = key ? allItems(input.plan).find((i) => i.counterparties?.includes(key)) : undefined
   if (learned) return learned.id
+  const learnedSpecial = key ? input.plan.learnedSpecial?.[key] : undefined
+  if (learnedSpecial === SAVINGS || learnedSpecial === EXCLUDED) return learnedSpecial
 
   const category = tx.categoryId ? categoriesById.get(tx.categoryId) : undefined
   if (category?.kind === 'savings') return SAVINGS

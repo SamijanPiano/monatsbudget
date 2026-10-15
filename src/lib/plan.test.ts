@@ -184,3 +184,20 @@ describe('learnCounterparty ohne Empfänger', () => {
     expect(learnCounterparty(plan, '', 'b')).toBe(plan)
   })
 })
+
+describe('learnCounterparty für Sparen und Nicht zählen', () => {
+  it('merkt sich Sonderziele und nimmt den Empfänger aus allen Posten', () => {
+    const plan = { ...emptyPlan(), variable: [{ id: 'd', label: 'Daily', amount: 150, counterparties: ['sempf samuel'] }] }
+    const out = learnCounterparty(plan, 'sempf samuel', 'savings')
+    expect(out.learnedSpecial).toEqual({ 'sempf samuel': 'savings' })
+    expect(out.variable[0].counterparties).toEqual([])
+  })
+
+  it('Verschieben zurück in einen Posten vergisst das Sonderziel', () => {
+    const plan = { ...emptyPlan(), variable: [{ id: 'd', label: 'Daily', amount: 150 }], learnedSpecial: { x: 'savings' } }
+    const out = learnCounterparty(plan, 'x', 'd')
+    expect(out.learnedSpecial).toEqual({})
+    expect(out.variable[0].counterparties).toEqual(['x'])
+  })
+})
+
