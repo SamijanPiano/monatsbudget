@@ -55,6 +55,7 @@ export interface SyncDoc {
     contracts: Contract[]
     bankPending: BankPending | null
     dismissedDuplicates: string[]
+    dismissedRecurring: string[]
     deletedTransactionIds: string[]
     cashEnabled: boolean
     goals: Goal[]
@@ -82,6 +83,7 @@ export function buildDoc(
       contracts: budget.contracts,
       bankPending: budget.bankPending,
       dismissedDuplicates: budget.dismissedDuplicates ?? [],
+      dismissedRecurring: budget.dismissedRecurring ?? [],
       deletedTransactionIds: budget.deletedTransactionIds ?? [],
       cashEnabled: budget.profile.cashEnabled,
       goals: budget.profile.goals,
@@ -170,6 +172,7 @@ export function parseDoc(raw: unknown): SyncDoc | null {
       contracts: objects<Contract>(b.contracts),
       bankPending: isObj(b.bankPending) ? (b.bankPending as unknown as BankPending) : null,
       dismissedDuplicates: strings(b.dismissedDuplicates),
+      dismissedRecurring: strings(b.dismissedRecurring),
       deletedTransactionIds: strings(b.deletedTransactionIds),
       cashEnabled: b.cashEnabled === true,
       goals: objects<Goal>(b.goals),
@@ -280,6 +283,8 @@ export function mergeDocs(local: SyncDoc, remote: SyncDoc): SyncDoc {
       contracts: pick('contracts', lb.contracts, rb.contracts),
       bankPending: pick('misc', lb.bankPending, rb.bankPending),
       dismissedDuplicates: [...new Set([...rb.dismissedDuplicates, ...lb.dismissedDuplicates])],
+      // Kein Vereinigen: „zurückholen" auf einem Gerät muss auch auf den anderen gelten.
+      dismissedRecurring: pick('misc', lb.dismissedRecurring, rb.dismissedRecurring),
       deletedTransactionIds: tombstones,
       cashEnabled: pick('profile', lb.cashEnabled, rb.cashEnabled),
       goals: pick('profile', lb.goals, rb.goals),

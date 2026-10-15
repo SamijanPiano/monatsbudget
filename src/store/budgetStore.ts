@@ -14,13 +14,14 @@ import type {
   Month,
   Settings,
   TransactionSource,
+  Transaction,
 } from '../types/budget'
 import { createId } from '../lib/id'
 import { DEFAULT_SETTINGS, copyMonth, createBlankMonth, currentMonthId } from '../lib/seed'
 import { migrateBudgetState } from './migrate'
 import type { ParsedTransaction } from '../lib/import/types'
 import { buildImportedTransactions } from '../lib/ingest'
-import { detectRecurring } from '../lib/recurring'
+import { detectRecurring, recurringKey } from '../lib/recurring'
 import { logActivity } from './activityStore'
 import { formatCents } from '../lib/format'
 import { contractsFromRecurring } from '../lib/contracts'
@@ -76,6 +77,10 @@ interface BudgetActions {
   removeTransactions: (ids: string[]) => void
   /** Merkt sich ein Paar als „kein Duplikat", damit es nicht wieder vorgeschlagen wird. */
   dismissDuplicate: (key: string) => void
+  /** Empfänger dauerhaft aus den erkannten Dauerposten nehmen (samt erkanntem Vertrag). */
+  dismissRecurring: (counterparty: string) => void
+  /** Alle als „kein Dauerposten" markierten Empfänger wieder erkennen lassen. */
+  restoreDismissedRecurring: () => void
   /** Ordnet alle noch unkategorisierten Buchungen der „Sonstiges"-Kategorie zu. */
   backfillCategories: () => void
   /**
@@ -122,6 +127,11 @@ function initialState(): BudgetState {
     contracts: [],
     bankPending: null,
   }
+}
+
+/** Dauerposten neu erkennen, ohne die als „kein Dauerposten" markierten Empfänger. */
+function rulesFor(transactions: Transaction[], state: BudgetState) {
+  return detectRecurring(transactions, new Date(), state.dismissedRecurring ?? [])
 }
 
 /** Wendet eine Änderung auf den aktiven Monat an und gibt neue months zurück. */
@@ -298,7 +308,7 @@ export const useBudgetStore = create<BudgetStore>()(
           const merged = [...state.transactions, ...news]
           // Jede Buchung bekommt eine Kategorie: Regel-Treffer oder „Sonstiges".
           const transactions = categorizeAll(merged, categories, fallbackCategoryId(categories))
-          return { categories, transactions, recurringRules: detectRecurring(transactions) }
+          return { categories, transactions, recurringRules: rulesFor(transactions, state) }
         })
         return count
       },
@@ -340,7 +350,7 @@ export const useBudgetStore = create<BudgetStore>()(
           const transactions = state.transactions.filter((t) => !drop.has(t.id))
           if (transactions.length === state.transactions.length) return {}
           const deletedTransactionIds = [...(state.deletedTransactionIds ?? []), ...ids].slice(-MAX_TOMBSTONES)
-          return { transactions, recurringRules: detectRecurring(transactions), deletedTransactionIds }
+          return { transactions, recurringRules: rulesFor(transactions, state), deletedTransactionIds }
         }),
 
       dismissDuplicate: (key) =>
@@ -349,6 +359,33 @@ export const useBudgetStore = create<BudgetStore>()(
           if (current.includes(key)) return {}
           logActivity('duplikat', 'Paar als „kein Duplikat" markiert')
           return { dismissedDuplicates: [...current, key] }
+        }),
+
+      dismissRecurring: (counterparty) =>
+        set((state) => {
+          const key = recurringKey(counterparty)
+          const current = state.dismissedRecurring ?? []
+          if (current.includes(key)) return {}
+          logActivity('dauerposten', `Kein Dauerposten: ${counterparty}`)
+          const dismissedRecurring = [...current, key]
+          return {
+            dismissedRecurring,
+            recurringRules: state.recurringRules.filter((r) => recurringKey(r.counterparty) !== key),
+            // Nur automatisch erkannte Verträge fallen weg, selbst angelegte bleiben.
+            contracts: state.contracts.filter(
+              (c) => !(c.source === 'detected' && c.linkedCounterpartyKey === key),
+            ),
+          }
+        }),
+
+      restoreDismissedRecurring: () =>
+        set((state) => {
+          if (!state.dismissedRecurring?.length) return {}
+          logActivity('dauerposten', 'Ausgeblendete Dauerposten zurückgeholt')
+          return {
+            dismissedRecurring: [],
+            recurringRules: detectRecurring(state.transactions),
+          }
         }),
 
       backfillCategories: () =>

@@ -20,6 +20,7 @@ const BUDGET_SECTIONS: [keyof BudgetState, Section][] = [
   ['contracts', 'contracts'],
   ['bankPending', 'misc'],
   ['dismissedDuplicates', 'misc'],
+  ['dismissedRecurring', 'misc'],
   ['deletedTransactionIds', 'transactions'],
   ['profile', 'profile'],
 ]

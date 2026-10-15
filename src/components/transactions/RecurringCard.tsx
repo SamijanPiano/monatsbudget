@@ -35,8 +35,11 @@ const STATUS_CLASS: Record<RuleStatus, string> = {
 export function RecurringCard() {
   const rules = useBudgetStore((s) => s.recurringRules)
   const categories = useBudgetStore((s) => s.categories)
+  const dismissedCount = useBudgetStore((s) => s.dismissedRecurring?.length ?? 0)
+  const dismissRecurring = useBudgetStore((s) => s.dismissRecurring)
+  const restoreDismissed = useBudgetStore((s) => s.restoreDismissedRecurring)
 
-  if (rules.length === 0) return null
+  if (rules.length === 0 && dismissedCount === 0) return null
 
   const key = currentMonthKey()
   const outflows = rules.filter((r) => r.amountApprox < 0)
@@ -69,6 +72,15 @@ export function RecurringCard() {
                   {formatCents(rule.amountApprox)}
                 </span>
               </div>
+              <button
+                type="button"
+                className="recurring__dismiss"
+                aria-label={`${rule.counterparty || 'Unbekannt'} ist kein Dauerposten`}
+                title="Kein Dauerposten"
+                onClick={() => dismissRecurring(rule.counterparty)}
+              >
+                ×
+              </button>
             </div>
           )
         })}
@@ -84,6 +96,11 @@ export function RecurringCard() {
       />
       {renderGroup('Einnahmen', inflows)}
       {renderGroup('Ausgaben & Abos', outflows)}
+      {dismissedCount > 0 && (
+        <button type="button" className="recurring__restore" onClick={restoreDismissed}>
+          {dismissedCount} ausgeblendet · zurückholen
+        </button>
+      )}
     </Card>
   )
 }

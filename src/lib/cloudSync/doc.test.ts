@@ -28,6 +28,7 @@ function doc(over: Partial<SyncDoc> = {}, budget: Partial<SyncDoc['budget']> = {
       contracts: [],
       bankPending: null,
       dismissedDuplicates: [],
+      dismissedRecurring: [],
       deletedTransactionIds: [],
       cashEnabled: false,
       goals: [],
@@ -82,6 +83,21 @@ describe('mergeDocs', () => {
     expect(m.plan.overrides).toEqual({ a: 'x', b: 'y' })
     expect(m.saldo.people).toHaveLength(1)
     expect(m.changedAt).toEqual({ ...emptyChangedAt(), plan: T2, saldo: T2 })
+  })
+})
+
+describe('„Kein Dauerposten" im Abgleich', () => {
+  it('neuere Liste gewinnt, damit „zurückholen" auch auf anderen Geräten gilt', () => {
+    const local = doc({ changedAt: { ...emptyChangedAt(), misc: T2 } }, { dismissedRecurring: [] })
+    const remote = doc({ changedAt: { ...emptyChangedAt(), misc: T1 } }, { dismissedRecurring: ['amazon eu'] })
+    expect(mergeDocs(local, remote).budget.dismissedRecurring).toEqual([])
+    expect(mergeDocs(remote, local).budget.dismissedRecurring).toEqual([])
+  })
+
+  it('ein alter Stand ohne das Feld ergibt eine leere Liste', () => {
+    const old = JSON.parse(JSON.stringify(doc()))
+    delete old.budget.dismissedRecurring
+    expect(parseDoc(old)?.budget.dismissedRecurring).toEqual([])
   })
 })
 

@@ -17,10 +17,29 @@ const AMOUNT_TOLERANCE_RATIO = 0.03
 const AMOUNT_TOLERANCE_CENT = 50
 /** Abbuchung darf so viele Tage vom üblichen Tag abweichen. */
 const SCHEDULE_TOLERANCE_DAYS = 2
+/**
+ * Kam ein Posten so viele Tage nicht mehr, gilt er als beendet (z. B. altes
+ * Gehalt nach einer Erhöhung, gekündigtes Abo): längster Monat + Toleranz +
+ * Wochenend-Verschiebung.
+ */
+const MAX_SILENCE_DAYS = 31 + SCHEDULE_TOLERANCE_DAYS + 2
+const DAY_MS = 86_400_000
 
 /** Empfänger normalisieren: trimmen, Mehrfach-Whitespace + Groß/Klein angleichen. */
 function normalizeCounterparty(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+/** Schlüssel, unter dem ein Empfänger als „kein Dauerposten" gemerkt wird. */
+export function recurringKey(counterparty: string): string {
+  return normalizeCounterparty(counterparty)
+}
+
+/** Kam die jüngste Buchung zu lange vor `today`? */
+function isStale(dates: readonly string[], today: Date): boolean {
+  const last = [...dates].sort()[dates.length - 1]
+  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+  return (todayUtc - Date.parse(`${last}T00:00:00Z`)) / DAY_MS > MAX_SILENCE_DAYS
 }
 
 /** Fortlaufender Monatsindex (Jahr*12 + Monat), um Lücken zu erkennen. */
@@ -218,15 +237,23 @@ function nextExpectedDate(typicalDay: number, today: Date): string {
  * Wiederkehrende Posten aus dem Buchungsstrom erkennen.
  * Gruppiert nach Empfänger, prüft Kadenz + Betragsstabilität und leitet je
  * Gruppe eine RecurringRule ab. Deterministisch (fester `today` injizierbar).
+ * `excluded`: Schlüssel (recurringKey) von Empfängern, die der Nutzer als
+ * „kein Dauerposten" markiert hat.
  */
-export function detectRecurring(txs: readonly Transaction[], today: Date = new Date()): RecurringRule[] {
+export function detectRecurring(
+  txs: readonly Transaction[],
+  today: Date = new Date(),
+  excluded: readonly string[] = [],
+): RecurringRule[] {
   const rules: RecurringRule[] = []
+  const skip = new Set(excluded)
 
   for (const group of groupByCounterparty(txs)) {
+    if (skip.has(recurringKey(group.counterparty))) continue
     for (const cluster of clusterByAmount(group.txs)) {
       const amounts = cluster.map((t) => t.amount)
       const dates = cluster.map((t) => t.date)
-      if (!isLikelyRecurring(amounts, dates)) continue
+      if (!isLikelyRecurring(amounts, dates) || isStale(dates, today)) continue
 
       const typicalDay = median(dates.map(dayOf))
       const categoryId =

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cyclicDayDistance, detectRecurring, isLikelyRecurring, isOnSchedule } from './recurring'
+import { cyclicDayDistance, detectRecurring, isLikelyRecurring, isOnSchedule, recurringKey } from './recurring'
 import type { Transaction } from '../types/budget'
 
 // Hilfs-Factory für Buchungen in Cent (negativ = Ausgabe).
@@ -129,6 +129,38 @@ describe('detectRecurring', () => {
       rules.map(({ id: _id, ...rest }) => rest)
     expect(strip(detectRecurring(txs, TODAY))).toEqual(strip(detectRecurring(txs, TODAY)))
   })
+
+  it('lässt einen Posten verfallen, der seit über einem Monat nicht mehr kam', () => {
+    const txs: Transaction[] = [
+      tx({ date: '2025-01-15', amount: -1799 }),
+      tx({ date: '2025-02-15', amount: -1799 }),
+    ]
+    // Letzte Buchung 15.02., heute 10.04.: März ist ausgefallen.
+    expect(detectRecurring(txs, TODAY)).toHaveLength(0)
+  })
+
+  it('behält nach einer Gehaltserhöhung nur den neuen Betrag', () => {
+    const lohn = (date: string, amount: number) => tx({ date, amount, counterparty: 'Arbeitgeber GmbH' })
+    const txs: Transaction[] = [
+      lohn('2024-12-15', 108282),
+      lohn('2025-01-15', 108282),
+      lohn('2025-02-14', 113734),
+      lohn('2025-03-14', 113734),
+    ]
+    const rules = detectRecurring(txs, TODAY)
+    expect(rules.map((r) => r.amountApprox)).toEqual([113734])
+  })
+
+  it('überspringt Empfänger, die als „kein Dauerposten" markiert sind (normalisiert)', () => {
+    const txs: Transaction[] = [
+      tx({ date: '2025-02-15', amount: -449, counterparty: 'Amazon EU' }),
+      tx({ date: '2025-03-15', amount: -449, counterparty: 'Amazon EU' }),
+      tx({ date: '2025-02-15', amount: -1799 }),
+      tx({ date: '2025-03-15', amount: -1799 }),
+    ]
+    const rules = detectRecurring(txs, TODAY, [recurringKey('  AMAZON eu ')])
+    expect(rules.map((r) => r.counterparty)).toEqual(['Netflix'])
+  })
 })
 
 describe('isOnSchedule (Tag ±2, Monatswechsel, Wochenende)', () => {
@@ -185,10 +217,10 @@ describe('detectRecurring: neue Regeln', () => {
 
   it('erkennt zwei verschiedene Abos beim selben Empfänger (PayPal) getrennt', () => {
     const txs: Transaction[] = [
-      tx({ date: '2025-01-03', amount: -999, counterparty: 'PayPal' }),
-      tx({ date: '2025-02-03', amount: -999, counterparty: 'PayPal' }),
-      tx({ date: '2025-01-20', amount: -1799, counterparty: 'PayPal' }),
+      tx({ date: '2025-02-08', amount: -999, counterparty: 'PayPal' }),
+      tx({ date: '2025-03-08', amount: -999, counterparty: 'PayPal' }),
       tx({ date: '2025-02-20', amount: -1799, counterparty: 'PayPal' }),
+      tx({ date: '2025-03-20', amount: -1799, counterparty: 'PayPal' }),
     ]
     const amounts = detectRecurring(txs, TODAY).map((r) => r.amountApprox).sort((a, b) => a - b)
     expect(amounts).toEqual([-1799, -999])
@@ -215,6 +247,7 @@ describe('detectRecurring: alte Lücken', () => {
       tx({ date: '2025-01-01', amount: -50000, counterparty: 'Vermieter' }),
       tx({ date: '2025-02-01', amount: -50000, counterparty: 'Vermieter' }),
       tx({ date: '2025-03-01', amount: -50000, counterparty: 'Vermieter' }),
+      tx({ date: '2025-04-01', amount: -50000, counterparty: 'Vermieter' }),
     ]
     expect(detectRecurring(txs, TODAY)).toHaveLength(1)
   })

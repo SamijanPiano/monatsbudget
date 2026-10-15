@@ -131,8 +131,9 @@ function applyDoc(doc: SyncDoc): void {
       contracts: doc.budget.contracts,
       bankPending: doc.budget.bankPending,
       dismissedDuplicates: doc.budget.dismissedDuplicates,
+      dismissedRecurring: doc.budget.dismissedRecurring,
       deletedTransactionIds: doc.budget.deletedTransactionIds,
-      recurringRules: detectRecurring(doc.budget.transactions),
+      recurringRules: detectRecurring(doc.budget.transactions, new Date(), doc.budget.dismissedRecurring),
       profile: { ...current.profile, cashEnabled: doc.budget.cashEnabled, goals: doc.budget.goals },
     })
     usePlanStore.setState({ plan: doc.plan.plan, overrides: doc.plan.overrides })

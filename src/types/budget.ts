@@ -202,6 +202,8 @@ export interface BudgetState {
   bankPending: BankPending | null
   /** Paare (pairKey), die der Nutzer als „kein Duplikat" bestätigt hat. */
   dismissedDuplicates?: string[]
+  /** Empfänger (recurringKey), die der Nutzer als „kein Dauerposten" markiert hat. */
+  dismissedRecurring?: string[]
   /** IDs gelöschter Buchungen, damit sie beim Geräte-Abgleich nicht zurückkommen. */
   deletedTransactionIds?: string[]
 }
