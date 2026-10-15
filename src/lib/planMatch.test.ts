@@ -165,4 +165,12 @@ describe('actualsForPeriod und salaryDates', () => {
     const t = tx({ counterparty: '' })
     expect(assignToPlan(input([t], { plan: broken })).get(t.id)).toBe('taeglich')
   })
+
+  test('Nebenjob-Lohn am 10. verschiebt den Periodenstart nicht, der größte Eingang zählt', () => {
+    const nebenjob = tx({ date: '2026-07-10', amount: 65781, categoryId: 'c-inc', counterparty: 'flaschenpost' })
+    const lohn = tx({ date: '2026-07-15', amount: 113734, categoryId: 'c-inc', counterparty: 'One Solution' })
+    const data = input([nebenjob, lohn])
+    expect(salaryDates(data, assignToPlan(data))).toEqual(['2026-07-15'])
+  })
 })
+

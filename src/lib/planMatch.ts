@@ -181,7 +181,13 @@ export function salaryDates(input: MatchInput, assignments: ReadonlyMap<string, 
   if (!salary) return []
   // Kleine Eingänge (Erstattung, Rückbuchung) dürfen den Periodenstart nicht verschieben.
   const minCents = Math.round(cents(salary.amount) * MIN_SALARY_SHARE)
-  return input.transactions
-    .filter((t) => t.amount > 0 && t.amount >= minCents && assignments.get(t.id) === salary.id)
-    .map((t) => t.date)
+  // Je Monat zählt nur der größte Eingang: ein Nebenjob-Lohn am 10. ist nicht das Gehalt am 15.
+  const largestPerMonth = new Map<string, Transaction>()
+  for (const t of input.transactions) {
+    if (t.amount <= 0 || t.amount < minCents || assignments.get(t.id) !== salary.id) continue
+    const month = t.date.slice(0, 7)
+    const best = largestPerMonth.get(month)
+    if (!best || t.amount > best.amount) largestPerMonth.set(month, t)
+  }
+  return [...largestPerMonth.values()].map((t) => t.date).sort()
 }
