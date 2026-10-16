@@ -111,6 +111,12 @@ export const usePlanStore = create<PlanState>()(
             `${before.label || 'Posten'}: ${formatMoney(before.amount)} → ${formatMoney(patch.amount)}`,
           )
         }
+        if (before && patch.pooled !== undefined) {
+          logActivity(
+            'plan',
+            `${before.label || 'Posten'}: ${patch.pooled ? 'mit Daily zusammengefasst' : 'nicht mehr im Daily-Topf'}`,
+          )
+        }
         set((s) => ({
           plan: {
             ...s.plan,

@@ -13,6 +13,10 @@ interface PlanItemActualProps {
   actual: TargetActual | undefined
   role: 'catchAll' | 'salary' | null
   onMakeRole: (() => void) | null
+  /** Gehört zum Daily-Topf (ohne Sammelposten selbst). */
+  pooled?: boolean
+  /** Topf-Zugehörigkeit umschalten; null = nicht möglich (Einnahme, Sammelposten). */
+  onTogglePool?: (() => void) | null
 }
 
 const ROLE_LABEL = { catchAll: 'Sammelposten', salary: 'Gehalt' } as const
@@ -21,7 +25,16 @@ const ROLE_LABEL = { catchAll: 'Sammelposten', salary: 'Gehalt' } as const
  * Ist-Stand eines Postens in der gewählten Periode: Balken „ausgegeben von
  * geplant", aufklappbar zur Liste der zugeordneten Buchungen.
  */
-export function PlanItemActual({ itemId, section, planned, actual, role, onMakeRole }: PlanItemActualProps) {
+export function PlanItemActual({
+  itemId,
+  section,
+  planned,
+  actual,
+  role,
+  onMakeRole,
+  pooled = false,
+  onTogglePool = null,
+}: PlanItemActualProps) {
   const [open, setOpen] = useState(false)
   const plannedCents = Math.round(planned * 100)
   const actualCents = actual?.cents ?? 0
@@ -46,6 +59,7 @@ export function PlanItemActual({ itemId, section, planned, actual, role, onMakeR
           <span className="plan-actual__count"> · {count} {count === 1 ? 'Buchung' : 'Buchungen'}</span>
         </span>
         {role && <span className="plan-badge">{ROLE_LABEL[role]}</span>}
+        {!role && pooled && <span className="plan-badge">Daily-Topf</span>}
       </button>
       <div className="plan-bar" aria-hidden="true">
         <span
@@ -59,6 +73,11 @@ export function PlanItemActual({ itemId, section, planned, actual, role, onMakeR
           {onMakeRole && (
             <button type="button" className="plan-role-btn" onClick={onMakeRole}>
               {isIncome ? 'Als Gehalt verwenden (bestimmt den Periodenstart)' : 'Als Sammelposten verwenden'}
+            </button>
+          )}
+          {onTogglePool && (
+            <button type="button" className="plan-role-btn" onClick={onTogglePool}>
+              {pooled ? 'Nicht mehr mit Daily zusammenfassen' : 'Mit Daily zusammenfassen'}
             </button>
           )}
         </div>

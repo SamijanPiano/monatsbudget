@@ -19,6 +19,8 @@ export interface PlanItem {
   catchAll?: boolean
   /** Gehaltsposten: sein Eingang bestimmt den Periodenstart. */
   salary?: boolean
+  /** Daily-Topf: mit Daily und Puffer zusammenfassen (fehlt = nach Name, siehe dailyPool). */
+  pooled?: boolean
 }
 
 export interface Plan {

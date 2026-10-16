@@ -1,6 +1,7 @@
 import { usePlanStore } from '../../store/planStore'
 import type { PlanItem, PlanSection as Section } from '../../lib/plan'
 import { formatMoney } from '../../lib/format'
+import { isPooled } from '../../lib/dailyPool'
 import { Card, SectionTitle } from '../ui/Card'
 import { IconPlus } from '../ui/icons'
 import { PlanItemRow } from './PlanItemRow'
@@ -60,6 +61,12 @@ export function PlanSection({
                 actual={actuals.byTarget[it.id]}
                 role={roleOf(it)}
                 onMakeRole={roleOf(it) ? null : () => setRole(roleToGive, it.id)}
+                pooled={section !== 'income' && isPooled(it)}
+                onTogglePool={
+                  section === 'income' || it.catchAll
+                    ? null
+                    : () => updateItem(section, it.id, { pooled: !isPooled(it) })
+                }
               />
             )}
           </PlanItemRow>

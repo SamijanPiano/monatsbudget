@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { usePlanStore } from '../../store/planStore'
 import type { PlanCalc, VerdictTone } from '../../lib/plan'
+import type { DailyPool } from '../../lib/dailyPool'
 import { formatMoney } from '../../lib/format'
 import { Card, SectionTitle } from '../ui/Card'
 import { Money } from '../ui/Money'
@@ -15,7 +16,7 @@ interface LineProps {
 }
 
 /** Eine berechnete Zeile (entspricht einer Excel-Formelzelle). */
-function PlanLine({ label, value, tone = 'default', signed = false, strong = false }: LineProps) {
+export function PlanLine({ label, value, tone = 'default', signed = false, strong = false }: LineProps) {
   return (
     <div className={`plan-line${strong ? ' plan-line--strong' : ''}`}>
       <span className="plan-line__label">{label}</span>
@@ -44,28 +45,37 @@ function PlanInputLine({ label, hint, value, onCommit }: InputLineProps) {
   )
 }
 
-function Divider() {
+export function Divider() {
   return <hr className="plan-divider" />
 }
 
-export function SavingsCard({ calc }: { calc: PlanCalc }) {
+export function SavingsCard({ calc, pool }: { calc: PlanCalc; pool: DailyPool }) {
   const setSavings = usePlanStore((s) => s.setSavings)
 
   return (
     <Card as="section" className="plan-card">
-      <SectionTitle title="Sparen" hint="Was nach Abzügen und Ausgaben übrig bleibt" />
+      <SectionTitle title="Sparen" hint="Was nach Abzügen und Ausgaben übrig bleibt, Daily ist schon abgezogen" />
       <div className="plan-lines">
         <PlanLine label="Nach Abzügen & Ausgaben" value={calc.afterExpenses} signed />
         <Divider />
         <PlanInputLine
           label="Sparbetrag"
-          hint={`max. ${formatMoney(calc.maxSave)}`}
+          hint={`max. ${formatMoney(calc.maxSave)}, Daily ${formatMoney(pool.dailyBase)} bleibt`}
           value={calc.savings}
           onCommit={setSavings}
         />
         <Divider />
-        <PlanLine label="Puffer nach Sparen" value={calc.buffer} signed strong />
+        <PlanLine label="Puffer nach Sparen, fließt ins Daily" value={calc.buffer} signed strong />
       </div>
+      {pool.dailyCut > 0 && (
+        <div className={`plan-verdict plan-verdict--${pool.daily < 0 ? 'short' : 'tight'}`} role="status">
+          <span className="plan-verdict__title">Mehr als das Maximum gespart</span>
+          <span className="plan-verdict__detail">
+            Daily sinkt um <strong className="tnum">{formatMoney(pool.dailyCut)}</strong> auf{' '}
+            <strong className="tnum">{formatMoney(pool.daily)}</strong>.
+          </span>
+        </div>
+      )}
     </Card>
   )
 }

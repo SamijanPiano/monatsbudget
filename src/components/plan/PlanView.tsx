@@ -6,6 +6,8 @@ import { DuplicatesSection } from '../settings/DuplicatesSection'
 import { PeriodSwitcher } from './PeriodSwitcher'
 import { PlanExtrasCard } from './PlanExtrasCard'
 import { calcPlan, verdictTone } from '../../lib/plan'
+import { calcDailyPool } from '../../lib/dailyPool'
+import { DailyPoolCard } from './DailyPoolCard'
 import { formatMoney } from '../../lib/format'
 import { Card } from '../ui/Card'
 import { BackBar } from '../ui/BackBar'
@@ -24,6 +26,7 @@ export function PlanView({ onBack }: PlanViewProps) {
   const plan = usePlanStore((s) => s.plan)
   const calc = calcPlan(plan)
   const tone = verdictTone(plan, calc)
+  const pool = calcDailyPool(plan, calc)
 
   const { input, assignments, periods } = usePlanPeriods()
   const [periodIndex, setPeriodIndex] = useState(0)
@@ -40,9 +43,12 @@ export function PlanView({ onBack }: PlanViewProps) {
   )
   const neededCents = Math.round(calc.needed * 100)
 
+  const otherNames = pool.items.filter((i) => !i.catchAll).map((i) => i.label || 'Posten').join(' + ')
+  const bufferPart =
+    pool.buffer < 0 ? ` − ${formatMoney(-pool.buffer)} zu viel gespart` : ` + ${formatMoney(pool.buffer)} Puffer`
   const formula =
-    `${formatMoney(calc.income)} rein − ${formatMoney(calc.needed)} raus` +
-    ` − ${formatMoney(calc.savings)} sparen`
+    (pool.others > 0 ? `${formatMoney(pool.others)} ${otherNames} + ` : '') +
+    `${formatMoney(pool.dailyBase)} Daily${bufferPart}`
 
   return (
     <div className="view-stack">
@@ -54,9 +60,9 @@ export function PlanView({ onBack }: PlanViewProps) {
 
       <Card className="plan-hero">
         <span className="plan-hero__eyebrow">Monatsplan</span>
-        <span className="plan-hero__label">Puffer nach Plan</span>
-        <span className={`plan-hero__value tnum${calc.buffer < 0 ? ' text-negative' : ''}`}>
-          {formatMoney(calc.buffer)}
+        <span className="plan-hero__label">Frei für Daily{otherNames ? ` & ${otherNames}` : ''}</span>
+        <span className={`plan-hero__value tnum${pool.total < 0 ? ' text-negative' : ''}`}>
+          {formatMoney(pool.total)}
         </span>
         <span className="plan-hero__formula tnum">{formula}</span>
         <span className="plan-hero__spent tnum">
@@ -105,7 +111,8 @@ export function PlanView({ onBack }: PlanViewProps) {
 
       <PlanExtrasCard actuals={actuals} />
 
-      <SavingsCard calc={calc} />
+      <SavingsCard calc={calc} pool={pool} />
+      <DailyPoolCard pool={pool} actuals={actuals} period={period} />
       <SituationCard balance={plan.balance} calc={calc} tone={tone} />
     </div>
   )
