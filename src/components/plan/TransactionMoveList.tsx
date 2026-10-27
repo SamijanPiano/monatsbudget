@@ -1,6 +1,7 @@
 import { usePlanStore } from '../../store/planStore'
 import type { Plan } from '../../lib/plan'
 import { EXCLUDED, OTHER_INCOME, SAVINGS, type PlanTarget } from '../../lib/planMatch'
+import { isPooled } from '../../lib/dailyPool'
 import type { Transaction } from '../../types/budget'
 import { formatCents } from '../../lib/format'
 
@@ -8,6 +9,8 @@ interface TransactionMoveListProps {
   transactions: Transaction[]
   /** Aktuelles Ziel aller Buchungen dieser Liste. */
   current: PlanTarget
+  /** Ziel je Buchung, wenn die Liste mehrere Posten mischt (Daily-Topf). */
+  targetOf?: (tx: Transaction) => PlanTarget
 }
 
 /** „8.10." aus „2026-10-08" */
@@ -17,10 +20,17 @@ function dayMonth(iso: string): string {
 
 function optionGroups(plan: Plan) {
   const named = (label: string, fallback: string) => label.trim() || fallback
+  const own = (items: Plan['fixed']) => items.filter((i) => !isPooled(i))
+  // Sammelposten = „ganzer Topf": dort landet alles, was keinem Posten direkt gehört.
+  const pooled = [...plan.fixed, ...plan.variable]
+    .filter(isPooled)
+    .sort((a, b) => Number(Boolean(b.catchAll)) - Number(Boolean(a.catchAll)))
+    .map((i) => ({ value: i.id, label: i.catchAll ? 'Ganzer Topf' : `nur ${named(i.label, 'Posten')}` }))
   return [
     { label: 'Einnahmen', items: plan.income.map((i) => ({ value: i.id, label: named(i.label, 'Einnahme') })) },
-    { label: 'Feste Abzüge', items: plan.fixed.map((i) => ({ value: i.id, label: named(i.label, 'Abzug') })) },
-    { label: 'Variable Ausgaben', items: plan.variable.map((i) => ({ value: i.id, label: named(i.label, 'Ausgabe') })) },
+    { label: 'Daily-Topf', items: pooled },
+    { label: 'Feste Abzüge', items: own(plan.fixed).map((i) => ({ value: i.id, label: named(i.label, 'Abzug') })) },
+    { label: 'Variable Ausgaben', items: own(plan.variable).map((i) => ({ value: i.id, label: named(i.label, 'Ausgabe') })) },
     {
       label: 'Sonstiges',
       items: [
@@ -35,7 +45,7 @@ function optionGroups(plan: Plan) {
  * Buchungen eines Postens. Jede lässt sich in einen anderen Posten schieben;
  * die App merkt sich den Empfänger für künftige Buchungen.
  */
-export function TransactionMoveList({ transactions, current }: TransactionMoveListProps) {
+export function TransactionMoveList({ transactions, current, targetOf }: TransactionMoveListProps) {
   const plan = usePlanStore((s) => s.plan)
   const moveTransaction = usePlanStore((s) => s.moveTransaction)
   const groups = optionGroups(plan)
@@ -46,7 +56,9 @@ export function TransactionMoveList({ transactions, current }: TransactionMoveLi
 
   return (
     <ul className="plan-tx-list">
-      {transactions.map((tx) => (
+      {transactions.map((tx) => {
+        const value = targetOf?.(tx) ?? current
+        return (
         <li key={tx.id} className="plan-tx">
           <span className="plan-tx__date tnum">{dayMonth(tx.date)}</span>
           <span className="plan-tx__name" title={tx.purpose}>
@@ -57,12 +69,12 @@ export function TransactionMoveList({ transactions, current }: TransactionMoveLi
           </span>
           <select
             className="plan-tx__move"
-            value={current}
+            value={value}
             aria-label={`${tx.counterparty || 'Buchung'} verschieben`}
             onChange={(e) => moveTransaction(tx, e.target.value)}
           >
-            {!groups.some((g) => g.items.some((i) => i.value === current)) && (
-              <option value={current}>{current === OTHER_INCOME ? 'Sonstige Eingänge' : 'Nicht zugeordnet'}</option>
+            {!groups.some((g) => g.items.some((i) => i.value === value)) && (
+              <option value={value}>{value === OTHER_INCOME ? 'Sonstige Eingänge' : 'Nicht zugeordnet'}</option>
             )}
             {groups.map((g) => (
               <optgroup key={g.label} label={g.label}>
@@ -75,7 +87,8 @@ export function TransactionMoveList({ transactions, current }: TransactionMoveLi
             ))}
           </select>
         </li>
-      ))}
+        )
+      })}
     </ul>
   )
 }

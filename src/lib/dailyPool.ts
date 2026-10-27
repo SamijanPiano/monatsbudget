@@ -1,17 +1,19 @@
-// Daily-Topf: „Andere", „Daily" (Sammelposten) und der Puffer nach Sparen
-// werden am Ende zu einem Betrag zusammengefasst. Die Posten bleiben als
-// Schätzung einzeln eintragbar, die laufenden Buchungen zählen gemeinsam.
+// Daily-Topf: „Andere", „Nadja", „Daily" (Sammelposten) und der Puffer nach
+// Sparen werden zu einem Betrag zusammengefasst. Die Posten bleiben als
+// Schätzung einzeln eintragbar, die laufenden Buchungen zählen gemeinsam:
+// Was keinem eigenen Posten direkt zugeordnet ist, geht an den ganzen Topf.
 // Daily ist der Grundbetrag, mit dem Samuel plant: Was nach dem Sparen übrig
 // bleibt, kommt dazu; wer mehr spart als möglich, kürzt nur das Daily.
 // Reine Funktionen, keine UI.
 
 import { round2 } from './calc'
 import type { Plan, PlanCalc, PlanItem } from './plan'
-import { UNASSIGNED, type PeriodActuals } from './planMatch'
+import { UNASSIGNED, type PeriodActuals, type PlanTarget } from './planMatch'
+import type { Transaction } from '../types/budget'
 import type { Period } from './period'
 
-/** Posten mit diesem Namen gehören ohne Markierung zum Topf. */
-const POOL_HINT = /^(andere|allgemein)\b/i
+/** Posten mit diesem Namen gehören ohne Markierung zum Topf („Zusätzliche Ausgaben", „Nadja", „Nadia"). */
+const POOL_HINT = /^(andere|allgemein|zus(ä|ae)tzlich|nad(j|i)a)/i
 const DAY_MS = 86_400_000
 
 function safe(value: number): number {
@@ -62,10 +64,13 @@ export function calcDailyPool(plan: Plan, calc: PlanCalc): DailyPool {
   }
 }
 
+function poolTargets(pool: DailyPool): PlanTarget[] {
+  return [...pool.items.map((i) => i.id), UNASSIGNED]
+}
+
 /** Buchungen aller Topf-Posten plus nicht zugeordnete, gemeinsam gezählt. */
 export function poolSpent(pool: DailyPool, actuals: PeriodActuals): { cents: number; count: number } {
-  const targets = [...pool.items.map((i) => i.id), UNASSIGNED]
-  return targets.reduce(
+  return poolTargets(pool).reduce(
     (acc, id) => {
       const actual = actuals.byTarget[id]
       return actual
@@ -74,6 +79,19 @@ export function poolSpent(pool: DailyPool, actuals: PeriodActuals): { cents: num
     },
     { cents: 0, count: 0 },
   )
+}
+
+export interface PoolTransaction {
+  tx: Transaction
+  /** Posten, dem die Buchung direkt gehört; Sammelposten bzw. UNASSIGNED = ganzer Topf. */
+  target: PlanTarget
+}
+
+/** Alle Buchungen des Topfs in einer Liste, neueste zuerst. */
+export function poolTransactions(pool: DailyPool, actuals: PeriodActuals): PoolTransaction[] {
+  return poolTargets(pool)
+    .flatMap((target) => (actuals.byTarget[target]?.transactions ?? []).map((tx) => ({ tx, target })))
+    .sort((a, b) => b.tx.date.localeCompare(a.tx.date))
 }
 
 /** Verbleibende Tage der Periode, heute mitgezählt; null außerhalb der Periode. */

@@ -13,9 +13,7 @@ interface PlanItemActualProps {
   actual: TargetActual | undefined
   role: 'catchAll' | 'salary' | null
   onMakeRole: (() => void) | null
-  /** Gehört zum Daily-Topf (ohne Sammelposten selbst). */
-  pooled?: boolean
-  /** Topf-Zugehörigkeit umschalten; null = nicht möglich (Einnahme, Sammelposten). */
+  /** In den Daily-Topf legen; null = nicht möglich (Einnahme). */
   onTogglePool?: (() => void) | null
 }
 
@@ -32,7 +30,6 @@ export function PlanItemActual({
   actual,
   role,
   onMakeRole,
-  pooled = false,
   onTogglePool = null,
 }: PlanItemActualProps) {
   const [open, setOpen] = useState(false)
@@ -59,7 +56,6 @@ export function PlanItemActual({
           <span className="plan-actual__count"> · {count} {count === 1 ? 'Buchung' : 'Buchungen'}</span>
         </span>
         {role && <span className="plan-badge">{ROLE_LABEL[role]}</span>}
-        {!role && pooled && <span className="plan-badge">Daily-Topf</span>}
       </button>
       <div className="plan-bar" aria-hidden="true">
         <span
@@ -77,7 +73,7 @@ export function PlanItemActual({
           )}
           {onTogglePool && (
             <button type="button" className="plan-role-btn" onClick={onTogglePool}>
-              {pooled ? 'Nicht mehr mit Daily zusammenfassen' : 'Mit Daily zusammenfassen'}
+              In den Daily-Topf legen
             </button>
           )}
         </div>

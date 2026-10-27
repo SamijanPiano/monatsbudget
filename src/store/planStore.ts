@@ -52,7 +52,8 @@ interface PlanState {
   plan: Plan
   /** Manuelle Verschiebungen: Buchungs-ID → Posten-ID oder Sonderziel. */
   overrides: Record<string, PlanTarget>
-  addItem: (section: PlanSection) => void
+  /** Neuer Posten; `extra` z. B. `{ pooled: true }` für einen Topf-Posten. */
+  addItem: (section: PlanSection, extra?: Partial<Omit<PlanItem, 'id'>>) => void
   updateItem: (section: PlanSection, id: string, patch: Partial<Omit<PlanItem, 'id'>>) => void
   removeItem: (section: PlanSection, id: string) => void
   setSavings: (value: number) => void
@@ -93,9 +94,9 @@ export const usePlanStore = create<PlanState>()(
       plan: seedPlan(),
       overrides: {},
 
-      addItem: (section) =>
+      addItem: (section, extra) =>
         set((s) => {
-          const item: PlanItem = { id: createId(), label: DEFAULT_LABELS[section], amount: 0 }
+          const item: PlanItem = { id: createId(), label: DEFAULT_LABELS[section], amount: 0, ...extra }
           logActivity('plan', `Neuer Posten in ${SECTION_NAME[section]}`)
           return { plan: { ...s.plan, [section]: [...s.plan[section], item] } }
         }),

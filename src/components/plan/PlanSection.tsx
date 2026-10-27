@@ -37,13 +37,17 @@ export function PlanSection({
   const setRole = usePlanStore((s) => s.setRole)
   const roleOf = (it: PlanItem) => (it.catchAll ? 'catchAll' : it.salary ? 'salary' : null)
   const roleToGive = section === 'income' ? 'salary' : 'catchAll'
+  // Topf-Posten stehen in der Karte „Daily-Topf"; hier nur als Hinweis, die Summe zählt sie mit.
+  const pooled = section === 'income' ? [] : items.filter(isPooled)
+  const own = section === 'income' ? items : items.filter((it) => !isPooled(it))
+  const pooledSum = pooled.reduce((acc, it) => acc + (Number.isFinite(it.amount) ? it.amount : 0), 0)
 
   return (
     <Card as="section" className="plan-card">
       <SectionTitle title={title} hint={hint} />
 
       <div className="varcost-list">
-        {items.map((it) => (
+        {own.map((it) => (
           <PlanItemRow
             key={it.id}
             section={section}
@@ -61,16 +65,17 @@ export function PlanSection({
                 actual={actuals.byTarget[it.id]}
                 role={roleOf(it)}
                 onMakeRole={roleOf(it) ? null : () => setRole(roleToGive, it.id)}
-                pooled={section !== 'income' && isPooled(it)}
-                onTogglePool={
-                  section === 'income' || it.catchAll
-                    ? null
-                    : () => updateItem(section, it.id, { pooled: !isPooled(it) })
-                }
+                onTogglePool={section === 'income' ? null : () => updateItem(section, it.id, { pooled: true })}
               />
             )}
           </PlanItemRow>
         ))}
+        {pooled.length > 0 && (
+          <div className="plan-pool-ref">
+            <span>Im Daily-Topf: {pooled.map((it) => it.label || 'Posten').join(', ')}</span>
+            <strong className="tnum">{formatMoney(pooledSum)}</strong>
+          </div>
+        )}
       </div>
 
       <div className="varcost-foot">

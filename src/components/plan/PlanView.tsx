@@ -109,10 +109,11 @@ export function PlanView({ onBack }: PlanViewProps) {
         placeholder="z. B. Lebensmittel"
       />
 
+      <DailyPoolCard pool={pool} actuals={actuals} period={period} />
+
       <PlanExtrasCard actuals={actuals} />
 
       <SavingsCard calc={calc} pool={pool} />
-      <DailyPoolCard pool={pool} actuals={actuals} period={period} />
       <SituationCard balance={plan.balance} calc={calc} tone={tone} />
     </div>
   )
